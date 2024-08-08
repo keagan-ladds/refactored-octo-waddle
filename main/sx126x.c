@@ -11,7 +11,7 @@
 #define SX126X_PLL_STEP_SCALED (SX126X_XTAL_FREQ >> (25 - SX126X_PLL_STEP_SHIFT_AMOUNT))
 
 static uint32_t SX126xConvertFreqInHzToPllStep(uint32_t freqInHz);
-static uint8_t packet_type = 0;
+static uint8_t packet_type = -1;
 
 void sx126x_write_register(uint16_t addr, void *buffer, uint16_t buffer_len);
 void sx126x_read_register(uint16_t addr, void *buffer, uint16_t buffer_len);
@@ -91,7 +91,6 @@ void sx162x_init(void)
     sx162x_calibrate_image(0xD7, 0xDB);
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
-
     uint8_t reg = sx162x_get_packet_type();
     printf("SX126X_PACKET_TYPE = 0x%X", reg);
 
@@ -104,6 +103,30 @@ void sx162x_init(void)
 
     sx162x_set_dio_irq_params(irq_params);*/
     sx162x_set_lora_sync_word(0x3444);
+}
+
+sx126x_packet_status_t sx162x_get_packet_status(void)
+{
+    uint8_t data[3];
+    sx126x_read_command(SX162X_GET_PACKETSTATUS, &data, 3);
+
+    sx162x_packet_type_t packet_type = sx162x_get_packet_type();
+
+    sx126x_packet_status_t status;
+
+    switch (packet_type)
+    {
+    case LORA_RADIO_LORA:
+        status.lora.rssi_pkt = -data[0] / 2;
+        status.lora.snr_pkt = data[1] / 4;
+        status.lora.signal_rssi = -data[2] / 2;
+        break;
+
+    default:
+        break;
+    }
+
+    return status;
 }
 
 void sx162x_calibrate_image(uint8_t freq_1, uint8_t freq_2)
@@ -272,7 +295,7 @@ sx162x_status_t sx126x_get_status()
 
 sx162x_packet_type_t sx162x_get_packet_type(void)
 {
-    //return packet_type;
+    return packet_type;
 
     uint8_t data[1];
     sx126x_read_command(SX162X_GET_PACKETTYPE, &data, 1);
@@ -313,8 +336,6 @@ void sx162x_set_tx(uint32_t timeout)
 
 static uint32_t SX126xConvertFreqInHzToPllStep(uint32_t freqInHz)
 {
-    float steps = ((1 << 25) / 32000000.0f) * freqInHz;
-    ESP_LOGI(TAG, "STEPS %f.", steps);
     uint32_t stepsInt;
     uint32_t stepsFrac;
 
@@ -324,10 +345,7 @@ static uint32_t SX126xConvertFreqInHzToPllStep(uint32_t freqInHz)
     stepsFrac = freqInHz - (stepsInt * SX126X_PLL_STEP_SCALED);
 
     // Apply the scaling factor to retrieve a frequency in Hz (+ ceiling)
-    uint32_t steps_1 = (stepsInt << SX126X_PLL_STEP_SHIFT_AMOUNT) +
+    return (stepsInt << SX126X_PLL_STEP_SHIFT_AMOUNT) +
                        (((stepsFrac << SX126X_PLL_STEP_SHIFT_AMOUNT) + (SX126X_PLL_STEP_SCALED >> 1)) /
                         SX126X_PLL_STEP_SCALED);
-
-    ESP_LOGI(TAG, "STEPS 1 %lu.", steps_1);
-    return steps_1;
 }

@@ -44,19 +44,34 @@ typedef enum
     LORA_CR_4_8 = 0x04
 } lora_coding_rate_t;
 
-typedef enum {
+typedef enum
+{
     LORA_RADIO_GFSK = 0x00,
     LORA_RADIO_LORA = 0x01
 } lora_radio_modem_t;
 
-void lora_radio_init(void);
+typedef enum
+{
+    LORA_RADIO_STATE_IDLE,
+    LORA_RADIO_STATE_RX,
+    LORA_RADIO_STATE_TX
+} lora_radio_state_t;
+
+typedef struct
+{
+    void (*tx_done)(void);
+    void (*tx_timeout)(void);
+    void (*rx_done)(uint8_t *payload, uint8_t payload_length, uint16_t rssi, uint8_t snr);
+    void (*rx_timeout)(void);
+
+} lora_radio_config_t;
+
+void lora_radio_init(lora_radio_config_t config);
 void lora_radio_set_channel(uint32_t freq);
 void lora_radio_set_public_network(bool public);
 void lora_radio_receive(uint32_t timeout);
-void lora_radio_send(void* buffer, uint8_t len);
+void lora_radio_send(void *buffer, uint8_t len);
 void lora_radio_set_rx_params(lora_radio_modem_t modem, uint8_t bandwidth, uint8_t spreading_factor);
 void lora_radio_set_tx_params(lora_radio_modem_t modem, uint8_t power, uint8_t bandwidth, uint8_t spreading_factor);
-
-
 
 #endif

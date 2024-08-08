@@ -12,28 +12,42 @@
 
 #include "lvgl.h"
 #include "lvgl_helpers.h"
+#include "i2c_manager.h"
+#include "lvgl_tft/ssd1306.h"
 
 #define LV_TICK_PERIOD_MS 1
 #define APP_UI_TAG "APP_UI"
-#define DISP_BUF_SIZE 128*128
 
 static SemaphoreHandle_t ui_semaphore_handle = NULL;
 static void ui_task_handler(void *arg);
 static void lv_tick_task(void *arg);
 
-void app_ui_demo_ui(void){
+lv_obj_t *label1 = NULL;
+
+void app_ui_demo_ui(void)
+{
     /* Get the current screen  */
-    lv_obj_t * scr = lv_disp_get_scr_act(NULL);
+    lv_obj_t *scr = lv_disp_get_scr_act(NULL);
 
     /*Create a Label on the currently active screen*/
-    lv_obj_t * label1 =  lv_label_create(scr, NULL);
+    label1 = lv_label_create(scr, NULL);
 
-    
+    lv_anim_t a;
+    lv_anim_init(&a);
+
+    /* MANDATORY SETTINGS
+     *------------------*/
+
+    /*Set the "animator" function*/
+    lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_style_local_text_opa);
+    lv_anim_set_var(&a, label1);
+    lv_anim_set_time(&a, 200);
+    lv_anim_set_values(&a, LV_OPA_0, LV_OPA_100);
+    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
 
     /*Modify the Label's text*/
-    lv_label_set_text(label1, "Trackinator\n10 000");
-
-
+    lv_label_set_text(label1, LV_SYMBOL_GPS);
+    lv_label_set_align(label1, LV_LABEL_ALIGN_CENTER);
     /* Align the Label to the center
      * NULL means align on parent (which is the screen now)
      * 0, 0 at the end means an x, y offset after alignment*/
@@ -44,28 +58,26 @@ void app_ui_init(void)
 {
     ui_semaphore_handle = xSemaphoreCreateMutex();
 
+    lvgl_i2c_locking(i2c_manager_locking());
     lv_init();
 
     /* Initialize SPI or I2C bus used by the drivers */
     lvgl_driver_init();
 
-    lv_color_t* buf1 = heap_caps_malloc(DISP_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_DMA);
+    lv_color_t *buf1 = heap_caps_malloc(DISP_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_DMA);
     assert(buf1 != NULL);
 
     static lv_disp_buf_t disp_buf;
 
     uint32_t size_in_px = DISP_BUF_SIZE;
 
-#if defined CONFIG_LV_TFT_DISPLAY_CONTROLLER_IL3820         \
-    || defined CONFIG_LV_TFT_DISPLAY_CONTROLLER_JD79653A    \
-    || defined CONFIG_LV_TFT_DISPLAY_CONTROLLER_UC8151D     \
-    || defined CONFIG_LV_TFT_DISPLAY_CONTROLLER_SSD1306
+#if defined CONFIG_LV_TFT_DISPLAY_CONTROLLER_IL3820 || defined CONFIG_LV_TFT_DISPLAY_CONTROLLER_JD79653A || defined CONFIG_LV_TFT_DISPLAY_CONTROLLER_UC8151D || defined CONFIG_LV_TFT_DISPLAY_CONTROLLER_SSD1306
 
     /* Actual size in pixels, not bytes. */
-    
+
 #endif
 
-//size_in_px *= 8;
+    size_in_px *= 8;
 
     /* Initialize the working buffer depending on the selected display.
      * NOTE: buf2 == NULL when using monochrome displays. */
@@ -74,21 +86,10 @@ void app_ui_init(void)
     lv_disp_drv_t disp_drv;
     lv_disp_drv_init(&disp_drv);
     disp_drv.flush_cb = disp_driver_flush;
-    disp_drv.hor_res = 128;
-    disp_drv.ver_res = 32;
+    // disp_drv.hor_res = 128;
+    // disp_drv.ver_res = 32;
     disp_drv.rounder_cb = disp_driver_rounder;
     disp_drv.set_px_cb = disp_driver_set_px;
-
-#if defined CONFIG_DISPLAY_ORIENTATION_PORTRAIT || defined CONFIG_DISPLAY_ORIENTATION_PORTRAIT_INVERTED
-    disp_drv.rotated = 1;
-#endif
-
-    /* When using a monochrome display we need to register the callbacks:
-     * - rounder_cb
-     * - set_px_cb */
-#ifdef CONFIG_LV_TFT_DISPLAY_MONOCHROME
-    
-#endif
 
     disp_drv.buffer = &disp_buf;
     lv_disp_drv_register(&disp_drv);
@@ -105,6 +106,20 @@ void app_ui_init(void)
 
     app_ui_demo_ui();
     xTaskCreatePinnedToCore(ui_task_handler, "gui", 4096 * 2, NULL, 0, NULL, 1);
+}
+
+void app_ui_sleep()
+{
+    lv_label_set_text(label1, "Going to Sleep");
+    lv_label_set_align(label1, LV_LABEL_ALIGN_CENTER);
+    /* Align the Label to the center
+     * NULL means align on parent (which is the screen now)
+     * 0, 0 at the end means an x, y offset after alignment*/
+    lv_obj_align(label1, NULL, LV_ALIGN_CENTER, 0, 0);
+
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
+
+    ssd1306_sleep_in();
 }
 
 static void ui_task_handler(void *arg)
@@ -127,7 +142,6 @@ static void ui_task_handler(void *arg)
     // TODO: Free display buffer
     vTaskDelete(NULL);
 }
-
 
 static void lv_tick_task(void *arg)
 {

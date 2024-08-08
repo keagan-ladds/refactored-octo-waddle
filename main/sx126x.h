@@ -95,12 +95,11 @@ typedef struct
 
 } sx162x_gfsk_modulation_params_t;
 
-typedef enum {
+typedef enum
+{
     SET_RAMP_200U = 0x04
 
 } tx_ramp_time_t;
-
-
 
 typedef struct
 {
@@ -160,13 +159,15 @@ typedef enum
     STDBY_XOSC
 } sx162x_standby_mode_t;
 
-typedef struct {
+typedef struct
+{
     uint8_t duty_cycle;
     uint8_t hp_max;
     uint8_t device_sel;
 } sx126x_pa_config_t;
 
-typedef struct {
+typedef struct
+{
     uint8_t power;
     tx_ramp_time_t ramp_time;
 } sx126x_tx_params_t;
@@ -184,6 +185,18 @@ typedef struct
     uint16_t dio_2_mask;
     uint16_t dio_3_mask;
 } sx162x_irq_params_t;
+
+typedef struct
+{
+    uint8_t rssi_pkt;
+    uint8_t snr_pkt;
+    uint8_t signal_rssi;
+} sx126x_lora_packet_status_t;
+
+typedef union
+{
+    sx126x_lora_packet_status_t lora;
+} sx126x_packet_status_t;
 
 void sx162x_init(void);
 void sx162x_set_tx(uint32_t timeout);
@@ -207,6 +220,7 @@ void sx162x_set_dio2_as_rf_ctrl(bool enable);
 void sx162x_calibrate(uint8_t calibrate_params);
 void sx162x_calibrate_image(uint8_t freq_1, uint8_t freq_2);
 sx162x_rx_buffer_status_t sx162x_get_rx_buffer_status(void);
+sx126x_packet_status_t sx162x_get_packet_status(void);
 
 void sx126x_set_pa_config(sx126x_pa_config_t pa_config);
 void sx126x_set_tx_params(sx126x_tx_params_t tx_params);

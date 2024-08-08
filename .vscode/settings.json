@@ -21,6 +21,17 @@
         "i2c.h": "c",
         "freertos.h": "c",
         "functional": "c",
-        "adxl345.h": "c"
+        "adxl345.h": "c",
+        "lora_radio.h": "c",
+        "stdbool.h": "c",
+        "*.ipp": "c",
+        "loramac_message.h": "c",
+        "loramac_serializer.h": "c",
+        "app_ui.h": "c",
+        "i2c_manager.h": "c",
+        "sdkconfig.h": "c",
+        "loramac_protocol.h": "c",
+        "app_pwr_mgmnt.h": "c",
+        "cipher.h": "c"
     }
 }

@@ -6,6 +6,10 @@
 #include "freertos/queue.h"
 #include "driver/gpio.h"
 
+#ifdef CONFIG_HAVE_I2C_MANAGER
+#include "i2c_manager.h"
+#endif
+
 #define TAG "ADXL345"
 
 static uint8_t send_data(void *bytes, size_t bytes_len);
@@ -14,7 +18,7 @@ static uint8_t recieve_data(uint8_t reg_addr, void *bytes, size_t bytes_len);
 static uint8_t adxl345_reg_write(uint8_t reg, uint8_t val);
 static uint8_t adxl345_reg_read(uint8_t reg, uint8_t *data);
 
-bool lvgl_i2c_driver_init(int port, int sda_pin, int scl_pin, int speed_hz);
+bool adxl345_i2c_driver_init(int port, int sda_pin, int scl_pin, int speed_hz);
 void adxl345_init_gpio(void);
 #define ESP_INTR_FLAG_DEFAULT 0
 
@@ -43,9 +47,9 @@ static void gpio_task_example(void *arg)
 void adxl345_init(void)
 {
 
-    lvgl_i2c_driver_init(ADXL345_I2C_PORT,
-                         ADXL345_I2C_SDA, ADXL345_I2C_SCL,
-                         ADXL345_I2C_SPEED_HZ);
+    adxl345_i2c_driver_init(ADXL345_I2C_PORT,
+                            ADXL345_I2C_SDA, ADXL345_I2C_SCL,
+                            ADXL345_I2C_SPEED_HZ);
 
     adxl345_init_gpio();
 
@@ -84,8 +88,14 @@ void adxl345_init_gpio(void)
     gpio_config(&io_conf);
 }
 
-bool lvgl_i2c_driver_init(int port, int sda_pin, int scl_pin, int speed_hz)
+bool adxl345_i2c_driver_init(int port, int sda_pin, int scl_pin, int speed_hz)
 {
+
+//#ifdef CONFIG_HAVE_I2C_MANAGER
+    i2c_manager_init(I2C_NUM_0);
+    return true;
+//#endif
+
     esp_err_t err;
 
     ESP_LOGI(TAG, "Initializing I2C master port %d...", port);
@@ -138,6 +148,11 @@ static uint8_t send_data(void *bytes, size_t bytes_len)
 {
     esp_err_t err;
 
+#ifdef CONFIG_HAVE_I2C_MANAGER
+    err = i2c_manager_write(I2C_NUM_0, ADXL345_I2C_ADDR, I2C_NO_REG , bytes, bytes_len);
+    return err;
+#endif
+
     uint8_t *data = (uint8_t *)bytes;
 
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
@@ -162,6 +177,12 @@ static uint8_t send_data(void *bytes, size_t bytes_len)
 static uint8_t recieve_data(uint8_t reg_addr, void *bytes, size_t bytes_len)
 {
     esp_err_t err;
+
+#ifdef CONFIG_HAVE_I2C_MANAGER
+    err = i2c_manager_read(I2C_NUM_0, ADXL345_I2C_ADDR, reg_addr, bytes, bytes_len);
+    return err;
+#endif
+
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, (ADXL345_I2C_ADDR << 1) | I2C_MASTER_WRITE, true);

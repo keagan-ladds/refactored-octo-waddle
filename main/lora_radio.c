@@ -3,6 +3,7 @@
 #include "driver/gpio.h"
 #include "esp_log.h"
 #include "sx126x.h"
+#include <string.h>
 
 #define LORA_RADIO_TAG "LORA_RADIO"
 #define SX126X_GPIO_INT1 33
@@ -26,12 +27,16 @@ static QueueHandle_t gpio_evt_queue = NULL;
 spi_device_handle_t spi;
 static void gpio_task_example(void *arg);
 static void IRAM_ATTR gpio_isr_handler(void *arg);
+static lora_radio_config_t radio_config;
+static lora_radio_state_t radio_state = LORA_RADIO_STATE_IDLE;
 
 void lora_radio_spi_init();
 void lora_radio_gpio_init();
 
-void lora_radio_init(void)
+void lora_radio_init(lora_radio_config_t config)
 {
+    radio_config = config;
+
     lora_radio_spi_init();
     lora_radio_gpio_init();
     sx162x_init();
@@ -57,8 +62,9 @@ void lora_radio_receive(uint32_t timeout)
     gpio_set_level(SX126X_GPIO_RXEN, 1);
 
     sx162x_set_dio_irq_params(irq_params);
-    sx162x_set_buffer_base_address(0x00, 0x00);
+    sx162x_set_buffer_base_address(0x00, 127);
     sx162x_set_rx(timeout);
+    radio_state = LORA_RADIO_STATE_RX;
 }
 
 void lora_radio_set_channel(uint32_t freq)
@@ -74,8 +80,6 @@ void lora_radio_set_rx_params(lora_radio_modem_t modem, uint8_t bandwidth, uint8
         modem_mode = LORA_RADIO_LORA;
         sx162x_set_standby(STDBY_RC);
         sx162x_set_packet_type(PACKET_TYPE_LORA);
-
-        vTaskDelay(10 / portTICK_PERIOD_MS);
 
         packet_params.lora.header_type = LORA_HEADER_TYPE_VARIABLE;
         packet_params.lora.preamble_length = 8;
@@ -106,6 +110,7 @@ void lora_radio_send(void *buffer, uint8_t len)
     case LORA_RADIO_LORA:
         packet_params.lora.payload_length = len;
         sx162x_set_packet_params(packet_params);
+        ESP_LOGI(LORA_RADIO_TAG, "Setting TX payload length to %d bytes.", len);
         break;
     default:
         return;
@@ -118,9 +123,14 @@ void lora_radio_send(void *buffer, uint8_t len)
     gpio_set_level(SX126X_GPIO_RXEN, 0);
     sx162x_set_dio_irq_params(irq_params);
 
-    sx126x_write_buffer(0x00, buffer, len);
     sx162x_set_buffer_base_address(0x00, 0x00);
-    sx162x_set_tx(0xFFFF);
+    sx126x_write_buffer(0x00, buffer, len);
+
+    vTaskDelay(5 / portTICK_PERIOD_MS);
+    sx162x_set_tx(0xFFFFFF);
+    radio_state = LORA_RADIO_STATE_TX;
+    ESP_LOGI(LORA_RADIO_TAG, "Transmitting %d bytes.", len);
+    ESP_LOG_BUFFER_HEX(LORA_RADIO_TAG, buffer, len);
 }
 
 void lora_radio_set_tx_params(lora_radio_modem_t modem, uint8_t power, uint8_t bandwidth, uint8_t spreading_factor)
@@ -136,7 +146,7 @@ void lora_radio_set_tx_params(lora_radio_modem_t modem, uint8_t power, uint8_t b
         packet_params.lora.preamble_length = 8;
         packet_params.lora.payload_length = 0xFF;
         packet_params.lora.inverted_iq = LORA_INVERT_IQ_STANDARD;
-        packet_params.lora.crc_type = LORA_CRC_TYPE_OFF;
+        packet_params.lora.crc_type = LORA_CRC_TYPE_ON;
 
         modulation_params.lora.bandwidth = bandwidth;
         modulation_params.lora.speading_factor = spreading_factor;
@@ -145,15 +155,16 @@ void lora_radio_set_tx_params(lora_radio_modem_t modem, uint8_t power, uint8_t b
 
         pa_config.duty_cycle = 0x04;
         pa_config.hp_max = 0x07;
-        pa_config.device_sel = 0x01;
+        pa_config.device_sel = 0x00;
 
         tx_params.power = power;
-        tx_params.ramp_time = SET_RAMP_200U;
+        tx_params.ramp_time = 0x00;
 
         sx162x_set_modulation_params(modulation_params);
         sx162x_set_packet_params(packet_params);
         sx126x_set_tx_params(tx_params);
         sx126x_set_pa_config(pa_config);
+        ESP_LOGI(LORA_RADIO_TAG, "Configuring TX params for Lora mode.");
         break;
 
     default:
@@ -232,38 +243,71 @@ static void IRAM_ATTR gpio_isr_handler(void *arg)
 static void gpio_task_example(void *arg)
 {
     uint32_t io_num;
-    uint8_t buff[255];
+    static uint8_t buff[255];
     for (;;)
     {
         if (xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY))
         {
             uint16_t reg;
             uint16_t irq_status = sx162x_get_irq_status();
+            sx162x_clear_irq_status(irq_status);
             printf("SX162X IRQ - 0x%X\n", irq_status);
 
             if ((irq_status & SX126X_IRQ_RX_DONE) == SX126X_IRQ_RX_DONE)
             {
                 sx162x_rx_buffer_status_t buff_status = sx162x_get_rx_buffer_status();
-                printf("PKT RCVD 0x%X, 0x%X\n", buff_status.payload_length, buff_status.buffer_start_offset);
+                sx126x_packet_status_t packet_status = sx162x_get_packet_status();
+                printf("PKT RCVD Size: 0x%X, Rssi: %d dBm\n", buff_status.payload_length, packet_status.lora.rssi_pkt);
 
                 if (buff_status.payload_length > 0)
                 {
+                    memset(&buff, 0, sizeof(buff));
                     sx126x_read_buffer(buff_status.buffer_start_offset, &buff, buff_status.payload_length);
                     ESP_LOG_BUFFER_HEX(LORA_RADIO_TAG, &buff, buff_status.payload_length);
+
+                    if (radio_config.rx_done != NULL)
+                    {
+                        radio_config.rx_done(&buff, buff_status.payload_length, packet_status.lora.rssi_pkt, packet_status.lora.snr_pkt);
+                    }
                 }
+
+                radio_state = LORA_RADIO_STATE_IDLE;
             }
 
             if ((irq_status & SX126X_IRQ_TX_DONE) == SX126X_IRQ_TX_DONE)
             {
                 ESP_LOGI(LORA_RADIO_TAG, "TX DONE");
+                radio_state = LORA_RADIO_STATE_IDLE;
+                if (radio_config.tx_done != NULL)
+                {
+                    radio_config.tx_done();
+                }
             }
 
             if ((irq_status & SX126X_IRQ_TIMEOUT) == SX126X_IRQ_TIMEOUT)
             {
-                ESP_LOGI(LORA_RADIO_TAG, "TIMEOUT");
-            }
+                switch (radio_state)
+                {
+                case LORA_RADIO_STATE_RX:
+                    ESP_LOGI(LORA_RADIO_TAG, "RX TIMEOUT");
+                    if (radio_config.rx_timeout != NULL)
+                    {
+                        radio_config.rx_timeout();
+                    }
+                    break;
 
-            sx162x_clear_irq_status(irq_status);
+                case LORA_RADIO_STATE_TX:
+                    ESP_LOGI(LORA_RADIO_TAG, "TX TIMEOUT");
+                    if (radio_config.tx_timeout != NULL)
+                    {
+                        radio_config.tx_timeout();
+                    }
+                    break;
+
+                default:
+                    break;
+                }
+            }
         }
     }
 }

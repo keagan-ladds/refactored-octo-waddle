@@ -40,7 +40,7 @@
 #define ADXL345_I2C_SCL 22
 #define ADXL345_I2C_SPEED_HZ 400000
 
-#define ADXL345_GPIO_INT1 33
+#define ADXL345_GPIO_INT1 34
 
 void adxl345_init(void);
 void adxl345_read_val(uint8_t *data);
