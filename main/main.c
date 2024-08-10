@@ -156,7 +156,7 @@ void loramac_send()
     msg.port = 1;
     msg.mic = 0;
 
-    memcpy(msg.payload, &payload, strlen(payload));
+    memcpy(msg.payload, payload, strlen(payload));
     msg.payload_length = strlen(payload);
 
     loramac_err_t err;

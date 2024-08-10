@@ -83,7 +83,7 @@ loramac_err_t loramac_serialize_mac_message(loramac_message_mac_t *msg)
 
     for (int i = 0; i < msg->payload_length; i++)
     {
-        msg->buffer[buff_ptr++] = msg->payload[1];
+        msg->buffer[buff_ptr++] = msg->payload[i];
     }
 
     msg->buffer[buff_ptr++] = msg->mic & 0xFF;

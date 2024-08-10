@@ -61,7 +61,7 @@ loramac_crypto_err_t loramac_crypto_nvm_get_key(uint8_t key_type, uint8_t *key)
 
     ESP_LOGI(TAG, "Getting key '%s' from nvm.", loramac_crypto_nvm_keys[key_type].key_name);
 
-    size_t blob_size;
+    size_t blob_size = 16;
 
     err = nvs_get_blob(loramac_crypto_nvs_handle, loramac_crypto_nvm_keys[key_type].key_name, key, &blob_size);
 
