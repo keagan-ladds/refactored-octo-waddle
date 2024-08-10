@@ -38,5 +38,25 @@ loramac_parser_error_t loramac_parse_join_accept(loramac_message_join_accept_t *
     msg->dl_settings.rx2_dr = (msg->buffer[buff_ptr++] & 0x0F);
 
     msg->rx_delay = msg->buffer[buff_ptr++] & 0x0F;
+
+    // Check that we can atleast still read the MIC
+    if (msg->buffer_size - buff_ptr < 4)
+    {
+        ESP_LOGE(TAG, "Failed to parse join-accept message, unexpected end of frame.");
+        return -1;
+    }
+
+    msg->cf_list_length = msg->buffer_size - buff_ptr - LORAMAC_MIC_FIELD_SIZE;
+
+    for (int i = 0; i < msg->cf_list_length; i++)
+    {
+        msg->cf_list[i] = msg->buffer[buff_ptr++];
+    }
+
+    msg->mic = msg->buffer[buff_ptr++];
+    msg->mic |= msg->buffer[buff_ptr++] << 8;
+    msg->mic |= msg->buffer[buff_ptr++] << 16;
+    msg->mic |= msg->buffer[buff_ptr++] << 24;
+
     return 0;
 }

@@ -48,6 +48,7 @@ typedef struct
     loramac_dl_settings_t dl_settings;
     uint8_t rx_delay;
     uint8_t cf_list[16];
+    uint8_t cf_list_length;
     uint32_t mic;
 } loramac_message_join_accept_t;
 

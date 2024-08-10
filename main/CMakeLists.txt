@@ -7,6 +7,7 @@ list (APPEND SOURCES "loramac/loramac_serializer.c")
 list (APPEND SOURCES "loramac/loramac_parser.c")
 list (APPEND SOURCES "loramac/loramac_debug.c")
 list (APPEND SOURCES "loramac/loramac_crypto.c")
+list (APPEND SOURCES "loramac/loramac_crypto_nvm.c")
 
 
 idf_component_register(SRCS ${SOURCES} INCLUDE_DIRS "")

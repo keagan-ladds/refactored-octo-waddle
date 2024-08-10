@@ -32,6 +32,7 @@
         "sdkconfig.h": "c",
         "loramac_protocol.h": "c",
         "app_pwr_mgmnt.h": "c",
-        "cipher.h": "c"
+        "cipher.h": "c",
+        "esp_log.h": "c"
     }
 }
