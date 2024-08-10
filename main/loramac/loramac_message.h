@@ -23,6 +23,24 @@ typedef struct
     uint16_t buffer_size;
 
     loramac_mac_header_t mhdr;
+    loramac_frame_header_t fhdr;
+    uint8_t port;
+    uint8_t payload[255];
+    uint32_t mic;
+
+    uint8_t payload_length;
+    /*
+    Message direction (0 = uplink, 1 = downlink)
+    */
+    uint8_t direction;
+} loramac_message_mac_t;
+
+typedef struct
+{
+    uint8_t *buffer;
+    uint16_t buffer_size;
+
+    loramac_mac_header_t mhdr;
     uint8_t join_eui[LORAMAC_JOIN_EUI_FIELD_SIZE];
     uint8_t dev_eui[LORAMAC_DEV_EUI_FIELD_SIZE];
     uint16_t dev_nonce;

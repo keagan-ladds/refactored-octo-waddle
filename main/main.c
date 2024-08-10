@@ -26,7 +26,8 @@
 
 static const char *TAG = "gps_demo";
 
-void lorawan_broadcast();
+void lorawan_join();
+void loramac_send();
 void lorawan_rx_done_callback(uint8_t *payload, uint8_t payload_length, uint16_t rssi, uint8_t snr);
 void lorawan_tx_done_callback(void);
 
@@ -64,7 +65,7 @@ static void gps_event_handler(void *event_handler_arg, esp_event_base_t event_ba
 
 uint8_t join_eui[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 uint8_t dev_eui[] = {0x5F, 0x99, 0x06, 0xD0, 0x7E, 0xD5, 0xB3, 0x70};
-
+bool pending_join = false;
 void app_main(void)
 {
     printf("Hello world!\n");
@@ -75,12 +76,18 @@ void app_main(void)
     lora_radio_init(lora_radio_config);
     loramac_crypto_init();
 
-    //adxl345_init();
+    //lorawan_join();
 
-    //lorawan_rx_done_callback(&join_accept, sizeof(join_accept), 0, 0);
+    //vTaskDelay(15000 / portTICK_PERIOD_MS);
 
-    //app_ui_init();
-    lorawan_broadcast();
+    loramac_send();
+    
+
+    // adxl345_init();
+
+    // lorawan_rx_done_callback(&join_accept, sizeof(join_accept), 0, 0);
+
+    // app_ui_init();
 
     vTaskDelay(15000 / portTICK_PERIOD_MS);
     // app_ui_sleep();
@@ -100,33 +107,75 @@ void lorawan_tx_done_callback(void)
 
     lora_radio_set_rx_params(LORA_RADIO_LORA, LORA_BW_125, LORA_SF_7);
     lora_radio_set_channel(868100000);
-    lora_radio_receive(0xFFFFFF); 
+    lora_radio_receive(0xFFFFFF);
 
-     vTaskDelay((RX2_DELAY - RX1_DELAY) / portTICK_PERIOD_MS);
-     ESP_LOGI(TAG, "Listening in RX2 Window");
+    vTaskDelay((RX2_DELAY - RX1_DELAY) / portTICK_PERIOD_MS);
+    ESP_LOGI(TAG, "Listening in RX2 Window");
 
-     lora_radio_set_rx_params(LORA_RADIO_LORA, LORA_BW_125, LORA_SF_9);
-     lora_radio_set_channel(869525000);
-     lora_radio_receive(0xFFFFFF);
+    lora_radio_set_rx_params(LORA_RADIO_LORA, LORA_BW_125, LORA_SF_9);
+    lora_radio_set_channel(869525000);
+    lora_radio_receive(0xFFFFFF);
 }
 
 void lorawan_rx_done_callback(uint8_t *payload, uint8_t payload_length, uint16_t rssi, uint8_t snr)
 {
     ESP_LOGI(TAG, "Received %d bytes, RSSI: %d, SNR: %d.", payload_length, rssi, snr);
-    loramac_message_join_accept_t msg = {
-        .buffer = payload,
-        .buffer_size = payload_length};
 
-    loramac_crypto_err_t err = loramac_crypto_handle_join_accept(&msg);
-    if (err == 0)
+    if (pending_join == true)
     {
-        ESP_LOGI(TAG, "Successfully handled join-accept message.");
-        loramac_debug_dump_join_accept(&msg);
+        loramac_message_join_accept_t msg = {
+            .buffer = payload,
+            .buffer_size = payload_length};
+
+        loramac_crypto_err_t err = loramac_crypto_handle_join_accept(&msg);
+        if (err == 0)
+        {
+            pending_join = false;
+            ESP_LOGI(TAG, "Successfully handled join-accept message.");
+            loramac_debug_dump_join_accept(&msg);
+        }
     }
 }
 
-void lorawan_broadcast()
+void loramac_send()
 {
+    const char *payload = "Hello World!";
+    static uint8_t buff[255];
+    memset(&buff, 0, sizeof(255));
+
+    loramac_message_mac_t msg;
+    msg.buffer = &buff;
+    msg.mhdr.frame_type = LORAMAC_FRAME_DATA_UPLINK_CONFIRMED;
+    msg.mhdr.major = 0x00;
+
+    msg.direction = 0;
+    msg.fhdr.frame_ctrl.uplink.ack = 1;
+    msg.fhdr.frame_ctrl.uplink.adr = 0;
+    msg.fhdr.frame_ctrl.uplink.adr_ack_req = 0;
+    msg.fhdr.frame_ctrl.uplink.frame_options_len = 0;
+    msg.port = 1;
+
+    memcpy(msg.payload, &payload, strlen(payload));
+    msg.payload_length = strlen(payload);
+
+    loramac_err_t err;
+    err = loramac_crypto_prepare_mac_message(&msg);
+
+    if (err != 0)
+    {
+        ESP_LOGE(TAG, "Couldn't prepare message");
+        return;
+    }
+
+    lora_radio_set_tx_params(LORA_RADIO_LORA, 0x16, LORA_BW_125, LORA_SF_7);
+    lora_radio_set_channel(868100000);
+
+    lora_radio_send(msg.buffer, msg.buffer_size);
+}
+
+void lorawan_join()
+{
+    pending_join = true;
     uint8_t buff[255];
 
     loramac_message_join_request_t join_request_msg;

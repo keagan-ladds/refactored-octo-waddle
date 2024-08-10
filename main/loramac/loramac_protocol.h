@@ -10,6 +10,9 @@
 #define LORAMAC_FRAME_DATA_UPLINK_CONFIRMED 0x4
 #define LORAMAC_FRAME_DATA_DOWNLINK_CONFIRMED 0x5
 
+#define LORAMAC_FRAME_DIRECTION_UP 0
+#define LORAMAC_FRAME_DIRECTION_DOWN 1
+
 typedef struct
 {
     uint8_t frame_type : 3;
@@ -31,7 +34,6 @@ typedef struct
     uint8_t adr : 1;
     uint8_t adr_ack_req : 1;
     uint8_t ack : 1;
-    uint8_t class_b : 1;
     uint8_t frame_options_len : 4;
 } loramac_uplink_frame_fctrl_t;
 
@@ -45,7 +47,7 @@ typedef struct
 {
     uint32_t dev_addr;
     loramac_frame_fctrl_t frame_ctrl;
-    uint16_t frame_counter;
+    uint32_t frame_counter;
     uint8_t frame_options[15];
 } loramac_frame_header_t;
 

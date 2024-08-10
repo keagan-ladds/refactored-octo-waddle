@@ -17,4 +17,5 @@ loramac_crypto_err_t loramac_crypto_aes_cmac(uint8_t *key, uint8_t *buffer, uint
 
 loramac_crypto_err_t loramac_crypto_handle_join_accept(loramac_message_join_accept_t *msg);
 loramac_crypto_err_t loramac_crypto_prepare_join_request(loramac_message_join_request_t *msg);
+loramac_crypto_err_t loramac_crypto_prepare_mac_message(loramac_message_mac_t *msg);
 #endif
