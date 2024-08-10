@@ -62,7 +62,7 @@ void lora_radio_receive(uint32_t timeout)
     gpio_set_level(SX126X_GPIO_RXEN, 1);
 
     sx162x_set_dio_irq_params(irq_params);
-    sx162x_set_buffer_base_address(0x00, 127);
+    sx162x_set_buffer_base_address(0x00, 0x00);
     sx162x_set_rx(timeout);
     radio_state = LORA_RADIO_STATE_RX;
 }

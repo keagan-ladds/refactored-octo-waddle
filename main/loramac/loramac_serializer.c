@@ -19,7 +19,7 @@ loramac_serializer_result_t loramac_serialize_join_request(loramac_message_join_
         return LORAMAC_SERIALIZER_ERROR_BUF_SIZE;
     }
 
-    msg->buffer[bufItr] = (msg->mhdr.frame_type << 4) & 0xE0;
+    msg->buffer[bufItr] = (msg->mhdr.frame_type << 5) & 0xE0;
     msg->buffer[bufItr++] |= (msg->mhdr.major) & 0x03;
 
     memcpy(&msg->buffer[bufItr], msg->join_eui, LORAMAC_JOIN_EUI_FIELD_SIZE);
@@ -50,7 +50,7 @@ loramac_err_t loramac_serialize_mac_message(loramac_message_mac_t *msg)
 
     uint16_t buff_ptr = 0;
 
-    msg->buffer[buff_ptr] = (msg->mhdr.frame_type << 4) & 0xE0;
+    msg->buffer[buff_ptr] = (msg->mhdr.frame_type << 5) & 0xE0;
     msg->buffer[buff_ptr++] |= (msg->mhdr.major) & 0x03;
 
     msg->buffer[buff_ptr++] = msg->fhdr.dev_addr & 0xFF;

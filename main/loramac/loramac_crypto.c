@@ -41,7 +41,7 @@ loramac_crypto_err_t loramac_crypto_init(void)
     return err;
 }
 
-loramac_crypto_err_t loramac_crypto_aes_cmac(uint8_t *key, uint8_t *buffer, uint16_t buffer_length, uint32_t *cmac)
+loramac_crypto_err_t loramac_crypto_aes_cmac(uint8_t *key, uint8_t *b0_buffer, uint8_t *buffer, uint16_t buffer_length, uint32_t *cmac)
 {
     unsigned char output[16];
     int ret;
@@ -71,6 +71,17 @@ loramac_crypto_err_t loramac_crypto_aes_cmac(uint8_t *key, uint8_t *buffer, uint
     {
         ESP_LOGE(LORAMAC_CRYPTO_TAG, "Failed to set CMAC key: %d\n", ret);
         return 1;
+    }
+
+    if (b0_buffer != NULL)
+    {
+        // Update the CMAC with the b0 buffer
+        ret = mbedtls_cipher_cmac_update(&ctx, b0_buffer, 16);
+        if (ret != 0)
+        {
+            ESP_LOGE(LORAMAC_CRYPTO_TAG, "Failed to update CMAC: %d\n", ret);
+            return 1;
+        }
     }
 
     // Update the CMAC with the message
@@ -108,7 +119,7 @@ loramac_crypto_err_t loramac_crypto_aes_verify_cmac(uint8_t *key, uint8_t *buffe
     loramac_crypto_err_t err;
 
     // Compute CMAC
-    err = loramac_crypto_aes_cmac(key, buffer, buffer_length, &cmac);
+    err = loramac_crypto_aes_cmac(key, NULL, buffer, buffer_length, &cmac);
 
     if (err != 0)
     {
@@ -208,7 +219,7 @@ loramac_crypto_err_t loramac_crypto_prepare_join_request(loramac_message_join_re
     msg->dev_nonce = dev_nonce;
 
     loramac_serialize_join_request(msg);
-    loramac_crypto_aes_cmac(&app_key, msg->buffer, msg->buffer_size - LORAMAC_MIC_FIELD_SIZE, &msg->mic);
+    loramac_crypto_aes_cmac(&app_key, NULL, msg->buffer, msg->buffer_size - LORAMAC_MIC_FIELD_SIZE, &msg->mic);
     loramac_serialize_join_request(msg);
 
     return 0;
@@ -263,7 +274,7 @@ void loramac_crypto_prepare_b0(uint8_t dir, uint32_t dev_addr, uint32_t frame_cn
     b0[3] = 0x00;
     b0[4] = 0x00;
 
-    b0[5] = dir & 0x0F;
+    b0[5] = dir & 0x01;
 
     b0[6] = dev_addr & 0xFF;
     b0[7] = (dev_addr >> 8) & 0xFF;
@@ -285,14 +296,12 @@ loramac_err_t loramac_crypto_secure_mac_message(loramac_message_mac_t *msg)
     uint8_t nwk_s_key[16];
     loramac_crypto_nvm_get_key(LORAMAC_CRYPTO_KEY_NWK_SESS, &nwk_s_key);
 
-    uint8_t *buff = (uint8_t *)malloc(16 + msg->buffer_size - 4);
-    loramac_crypto_prepare_b0(msg->direction, msg->fhdr.dev_addr, msg->fhdr.frame_counter, msg->buffer_size - 4, buff);
-    memcpy(buff + 16, msg->buffer, msg->buffer_size - 4);
-    loramac_crypto_aes_cmac(&nwk_s_key, msg->buffer, msg->buffer_size - LORAMAC_MIC_FIELD_SIZE, &msg->mic);
+    uint8_t b0[16];
+    loramac_crypto_prepare_b0(0, msg->fhdr.dev_addr, msg->fhdr.frame_counter, msg->buffer_size - LORAMAC_MIC_FIELD_SIZE, &b0);
+    loramac_crypto_aes_cmac(&nwk_s_key, &b0,  msg->buffer, msg->buffer_size - LORAMAC_MIC_FIELD_SIZE, &msg->mic);
     loramac_serialize_mac_message(msg);
     loramac_crypto_nvm_set_frame_counter(msg->direction, msg->fhdr.frame_counter + 1);
 
-    free(buff);
     return 0;
 }
 

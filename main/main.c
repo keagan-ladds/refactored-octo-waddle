@@ -145,15 +145,16 @@ void loramac_send()
 
     loramac_message_mac_t msg;
     msg.buffer = &buff;
-    msg.mhdr.frame_type = LORAMAC_FRAME_DATA_UPLINK_CONFIRMED;
+    msg.mhdr.frame_type = LORAMAC_FRAME_DATA_UPLINK_UNCONFIRMED;
     msg.mhdr.major = 0x00;
 
     msg.direction = 0;
-    msg.fhdr.frame_ctrl.uplink.ack = 1;
+    msg.fhdr.frame_ctrl.uplink.ack = 0;
     msg.fhdr.frame_ctrl.uplink.adr = 0;
     msg.fhdr.frame_ctrl.uplink.adr_ack_req = 0;
     msg.fhdr.frame_ctrl.uplink.frame_options_len = 0;
     msg.port = 1;
+    msg.mic = 0;
 
     memcpy(msg.payload, &payload, strlen(payload));
     msg.payload_length = strlen(payload);
