@@ -35,6 +35,9 @@
         "cipher.h": "c",
         "esp_log.h": "c",
         "cstdlib": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "task.h": "c",
+        "spi_master.h": "c",
+        "esp_timer.h": "c"
     }
 }

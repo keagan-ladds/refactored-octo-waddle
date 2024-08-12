@@ -5,6 +5,21 @@
 
 #define TAG "loramac_parser"
 
+loramac_err_t loramac_parse_frame(loramac_frame_t *frame)
+{
+    if (frame->buffer == NULL || frame->buffer_size == 0)
+    {
+        ESP_LOGE(TAG, "Failed to parse frame, null or zero length input buffer.");
+        return -1;
+    }
+
+    uint16_t buff_ptr = 0;
+    frame->mhdr.frame_type = (frame->buffer[buff_ptr] & 0xE0) >> 5;
+    frame->mhdr.major = (frame->buffer[buff_ptr++] & 0x03);
+
+    return LORAMAC_OK;
+}
+
 loramac_parser_error_t loramac_parse_join_accept(loramac_message_join_accept_t *msg)
 {
     if (msg->buffer == NULL || msg->buffer_size == 0)

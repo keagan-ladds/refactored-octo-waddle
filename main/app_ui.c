@@ -46,7 +46,7 @@ void app_ui_demo_ui(void)
     lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
 
     /*Modify the Label's text*/
-    lv_label_set_text(label1, LV_SYMBOL_GPS);
+    lv_label_set_text(label1, LV_SYMBOL_WIFI);
     lv_label_set_align(label1, LV_LABEL_ALIGN_CENTER);
     /* Align the Label to the center
      * NULL means align on parent (which is the screen now)
@@ -86,8 +86,6 @@ void app_ui_init(void)
     lv_disp_drv_t disp_drv;
     lv_disp_drv_init(&disp_drv);
     disp_drv.flush_cb = disp_driver_flush;
-    // disp_drv.hor_res = 128;
-    // disp_drv.ver_res = 32;
     disp_drv.rounder_cb = disp_driver_rounder;
     disp_drv.set_px_cb = disp_driver_set_px;
 

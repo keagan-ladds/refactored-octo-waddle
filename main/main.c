@@ -16,7 +16,7 @@
 #include "esp_log.h"
 #include "app_ui.h"
 #include "adxl345.h"
-#include "lora_radio.h"
+#include "loramac/lora_radio.h"
 #include "loramac/loramac_serializer.h"
 #include "loramac/loramac_message.h"
 #include "loramac/loramac_crypto.h"
@@ -27,7 +27,6 @@
 static const char *TAG = "gps_demo";
 
 void lorawan_join();
-void loramac_send();
 void lorawan_rx_done_callback(uint8_t *payload, uint8_t payload_length, uint16_t rssi, uint8_t snr);
 void lorawan_tx_done_callback(void);
 
@@ -63,31 +62,41 @@ static void gps_event_handler(void *event_handler_arg, esp_event_base_t event_ba
     }
 }
 
-uint8_t join_eui[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-uint8_t dev_eui[] = {0x5F, 0x99, 0x06, 0xD0, 0x7E, 0xD5, 0xB3, 0x70};
-bool pending_join = false;
+
 void app_main(void)
 {
     printf("Hello world!\n");
 
-    lora_radio_config_t lora_radio_config = {
-        .rx_done = lorawan_rx_done_callback,
-        .tx_done = lorawan_tx_done_callback};
-    lora_radio_init(lora_radio_config);
-    loramac_crypto_init();
+    const pwr_mgmnt_init_config_t pwr_mgmnt_config = {
+        .auto_deep_sleep_timeout = 5000,
+        .auto_light_sleep_timeout = 10};
 
-    //lorawan_join();
+    const pwr_mgmnt_sleeplock_config_t sleep_config = {
+        .name = "main app"
+    };
 
-    //vTaskDelay(15000 / portTICK_PERIOD_MS);
+    const loramac_init_config_t lora_config = {
 
-    loramac_send();
+    };
+
+    const pwr_mgmnt_sleeplock_handle_t hdl;
     
+    pwr_mgmnt_init(&pwr_mgmnt_config);
 
-    // adxl345_init();
+    pwr_mgmnt_register_sleeplock(&sleep_config, &hdl);
+    pwr_mgmnt_set_sleeplock(hdl);
+    pwr_mgmnt_release_sleeplock(hdl);
 
-    // lorawan_rx_done_callback(&join_accept, sizeof(join_accept), 0, 0);
+    loramac_init(&lora_config);
 
-    // app_ui_init();
+    app_ui_init();
+    adxl345_init();
+
+    const char* str = "Hello World!";
+    loramac_send(str, strlen(str));
+
+    //loramac_join(false);
+
 
     vTaskDelay(15000 / portTICK_PERIOD_MS);
     // app_ui_sleep();
@@ -99,103 +108,9 @@ void app_main(void)
     }
 }
 
-void lorawan_tx_done_callback(void)
-{
-    vTaskDelay(RX1_DELAY / portTICK_PERIOD_MS);
 
-    ESP_LOGI(TAG, "Listening in RX1 Window");
 
-    lora_radio_set_rx_params(LORA_RADIO_LORA, LORA_BW_125, LORA_SF_7);
-    lora_radio_set_channel(868100000);
-    lora_radio_receive(0xFFFFFF);
 
-    vTaskDelay((RX2_DELAY - RX1_DELAY) / portTICK_PERIOD_MS);
-    ESP_LOGI(TAG, "Listening in RX2 Window");
 
-    lora_radio_set_rx_params(LORA_RADIO_LORA, LORA_BW_125, LORA_SF_9);
-    lora_radio_set_channel(869525000);
-    lora_radio_receive(0xFFFFFF);
-}
 
-void lorawan_rx_done_callback(uint8_t *payload, uint8_t payload_length, uint16_t rssi, uint8_t snr)
-{
-    ESP_LOGI(TAG, "Received %d bytes, RSSI: %d, SNR: %d.", payload_length, rssi, snr);
 
-    if (pending_join == true)
-    {
-        loramac_message_join_accept_t msg = {
-            .buffer = payload,
-            .buffer_size = payload_length};
-
-        loramac_crypto_err_t err = loramac_crypto_handle_join_accept(&msg);
-        if (err == 0)
-        {
-            pending_join = false;
-            ESP_LOGI(TAG, "Successfully handled join-accept message.");
-            loramac_debug_dump_join_accept(&msg);
-        }
-    }
-}
-
-void loramac_send()
-{
-    const char *payload = "Hello World!";
-    static uint8_t buff[255];
-    memset(&buff, 0, sizeof(255));
-
-    loramac_message_mac_t msg;
-    msg.buffer = &buff;
-    msg.mhdr.frame_type = LORAMAC_FRAME_DATA_UPLINK_UNCONFIRMED;
-    msg.mhdr.major = 0x00;
-
-    msg.direction = 0;
-    msg.fhdr.frame_ctrl.uplink.ack = 0;
-    msg.fhdr.frame_ctrl.uplink.adr = 0;
-    msg.fhdr.frame_ctrl.uplink.adr_ack_req = 0;
-    msg.fhdr.frame_ctrl.uplink.frame_options_len = 0;
-    msg.port = 1;
-    msg.mic = 0;
-
-    memcpy(msg.payload, payload, strlen(payload));
-    msg.payload_length = strlen(payload);
-
-    loramac_err_t err;
-    err = loramac_crypto_prepare_mac_message(&msg);
-
-    if (err != 0)
-    {
-        ESP_LOGE(TAG, "Couldn't prepare message");
-        return;
-    }
-
-    lora_radio_set_tx_params(LORA_RADIO_LORA, 0x16, LORA_BW_125, LORA_SF_7);
-    lora_radio_set_channel(868100000);
-
-    lora_radio_send(msg.buffer, msg.buffer_size);
-}
-
-void lorawan_join()
-{
-    pending_join = true;
-    uint8_t buff[255];
-
-    loramac_message_join_request_t join_request_msg;
-    join_request_msg.buffer = &buff;
-    join_request_msg.buffer_size = sizeof(buff);
-    join_request_msg.mhdr.frame_type = LORAMAC_FRAME_JOIN_REQUEST;
-    join_request_msg.mhdr.major = 0x00;
-    memcpy(&join_request_msg.join_eui, &join_eui, sizeof(join_eui));
-    memcpy(&join_request_msg.dev_eui, &dev_eui, sizeof(dev_eui));
-
-    loramac_crypto_prepare_join_request(&join_request_msg);
-    loramac_debug_dump_join_request(&join_request_msg);
-
-    ESP_LOG_BUFFER_HEX(TAG, join_request_msg.buffer, join_request_msg.buffer_size);
-
-    lora_radio_set_public_network(true);
-
-    lora_radio_set_tx_params(LORA_RADIO_LORA, 0x16, LORA_BW_125, LORA_SF_7);
-    lora_radio_set_channel(868100000);
-
-    lora_radio_send(join_request_msg.buffer, join_request_msg.buffer_size);
-}

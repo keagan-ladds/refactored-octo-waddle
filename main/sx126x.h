@@ -3,7 +3,7 @@
 
 #include <inttypes.h>
 #include <stdbool.h>
-#include "lora_radio.h"
+#include "loramac/lora_radio.h"
 
 #define LORA_SYNCWORD_PUBLIC 0x3444
 #define LORA_SYNCWORD_PRIVATE 0x1424

@@ -21,6 +21,13 @@ typedef struct
 {
     uint8_t *buffer;
     uint16_t buffer_size;
+    loramac_mac_header_t mhdr;
+} loramac_frame_t;
+
+typedef struct
+{
+    uint8_t *buffer;
+    uint16_t buffer_size;
 
     loramac_mac_header_t mhdr;
     loramac_frame_header_t fhdr;

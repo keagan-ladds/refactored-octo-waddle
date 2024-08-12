@@ -1,4 +1,4 @@
-#include "lora_radio.h"
+#include "loramac/lora_radio.h"
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
@@ -62,7 +62,7 @@ void lora_radio_receive(uint32_t timeout)
     gpio_set_level(SX126X_GPIO_RXEN, 1);
 
     sx162x_set_dio_irq_params(irq_params);
-    sx162x_set_buffer_base_address(0x00, 0x00);
+    sx162x_set_buffer_base_address(0x00, 0x100);
     sx162x_set_rx(timeout);
     radio_state = LORA_RADIO_STATE_RX;
 }
@@ -255,6 +255,7 @@ static void gpio_task_example(void *arg)
 
             if ((irq_status & SX126X_IRQ_RX_DONE) == SX126X_IRQ_RX_DONE)
             {
+                vTaskDelay(100 / portTICK_PERIOD_MS);
                 sx162x_rx_buffer_status_t buff_status = sx162x_get_rx_buffer_status();
                 sx126x_packet_status_t packet_status = sx162x_get_packet_status();
                 printf("PKT RCVD Size: 0x%X, Rssi: %d dBm\n", buff_status.payload_length, packet_status.lora.rssi_pkt);
