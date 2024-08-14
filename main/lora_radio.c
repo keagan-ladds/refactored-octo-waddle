@@ -40,6 +40,7 @@ void lora_radio_init(lora_radio_config_t config)
     lora_radio_spi_init();
     lora_radio_gpio_init();
     sx162x_init();
+    //sx162x_set_buffer_base_address(0x00, 0x00);
 
     gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
     // start gpio task
@@ -255,7 +256,7 @@ static void gpio_task_example(void *arg)
 
             if ((irq_status & SX126X_IRQ_RX_DONE) == SX126X_IRQ_RX_DONE)
             {
-                vTaskDelay(100 / portTICK_PERIOD_MS);
+                vTaskDelay(200 / portTICK_PERIOD_MS);
                 sx162x_rx_buffer_status_t buff_status = sx162x_get_rx_buffer_status();
                 sx126x_packet_status_t packet_status = sx162x_get_packet_status();
                 printf("PKT RCVD Size: 0x%X, Rssi: %d dBm\n", buff_status.payload_length, packet_status.lora.rssi_pkt);

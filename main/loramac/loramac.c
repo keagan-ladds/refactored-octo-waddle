@@ -11,8 +11,11 @@
 #define TAG "loramac"
 static loramac_ctx_t context;
 
-uint8_t join_eui[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-uint8_t dev_eui[] = {0x5F, 0x99, 0x06, 0xD0, 0x7E, 0xD5, 0xB3, 0x70};
+// DEV_EUI: 0059AC00001B2EB8
+// APP_EUI: 0059AC0000010D19
+// APP_KEY: b5a69b6df41f53d39108917bdcdf72e5
+
+
 
 static void loramac_init_ctx(loramac_ctx_t *ctx, const loramac_init_config_t *config);
 static void loramac_init_radio(const loramac_ctx_t *ctx);
@@ -25,11 +28,12 @@ loramac_err_t loramac_init(const loramac_init_config_t *config)
     loramac_init_ctx(&context, config);
     loramac_init_radio(&context);
     loramac_crypto_init();
+    lora_radio_set_public_network(true);
 
     return LORAMAC_OK;
 }
 
-loramac_err_t loramac_join(bool force)
+loramac_err_t loramac_join(bool force, uint32_t timeout)
 {
     if (context.joined && !force)
     {
@@ -38,6 +42,8 @@ loramac_err_t loramac_join(bool force)
     }
 
     context.joined = false;
+
+    lora_radio_set_public_network(true);
 
     uint8_t buff[255];
 
@@ -50,8 +56,6 @@ loramac_err_t loramac_join(bool force)
     memcpy(&msg.dev_eui, &dev_eui, sizeof(dev_eui));
 
     loramac_crypto_prepare_join_request(&msg);
-
-    lora_radio_set_public_network(true);
 
     lora_radio_set_tx_params(LORA_RADIO_LORA, context.tx_window_config.tx_power,
                              context.tx_window_config.bandwidth,
@@ -103,6 +107,22 @@ loramac_err_t loramac_send(void *payload, uint16_t payload_length)
     return LORAMAC_OK;
 }
 
+static void loramac_init_tx_config(tx_window_config_t *config, uint8_t channel, uint8_t dr)
+{
+    config->frequency_hz = channels[channel].frequency_hz;
+    config->bandwidth = data_rate_bandwidth[dr];
+    config->spreading_factor = data_rate_spreading_factors[dr];
+    config->tx_power = 0x16;
+    config->dr = dr;
+}
+
+static void loramac_init_rx_config(rx_window_config_t *config, uint32_t freq_hz, uint8_t dr)
+{
+    config->frequency_hz = freq_hz;
+    config->bandwidth = data_rate_bandwidth[dr];
+    config->spreading_factor = data_rate_spreading_factors[dr];
+}
+
 static void loramac_init_ctx(loramac_ctx_t *ctx, const loramac_init_config_t *config)
 {
     const esp_timer_create_args_t rx1_timer_args = {.callback = &loramac_rx_timer_callback, .arg = (void *)&ctx->rx1_window_config};
@@ -111,22 +131,17 @@ static void loramac_init_ctx(loramac_ctx_t *ctx, const loramac_init_config_t *co
     ESP_ERROR_CHECK(esp_timer_create(&rx1_timer_args, &ctx->rx1_timer_handle));
     ESP_ERROR_CHECK(esp_timer_create(&rx2_timer_args, &ctx->rx2_timer_handle));
 
-    // For now, manually set RX1 & RX2 window config
-    ctx->rx1_window_config.frequency_hz = 868100000;
-    ctx->rx1_window_config.bandwidth = LORA_BW_125;
-    ctx->rx1_window_config.spreading_factor = LORA_SF_7;
-    ctx->rx1_window_config.delay_ms = 4900;
+    ctx->channel = config->channel;
+
+    loramac_init_tx_config(&ctx->tx_window_config, config->channel, config->dr);
+
+    ctx->rx1_delay = 4800;
+    ctx->rx2_delay = 5900;
+
 
     ctx->rx2_window_config.frequency_hz = 869525000;
     ctx->rx2_window_config.bandwidth = LORA_BW_125;
     ctx->rx2_window_config.spreading_factor = LORA_SF_9;
-    ctx->rx2_window_config.delay_ms = 6000;
-
-    // Manually set TX window config
-    ctx->tx_window_config.frequency_hz = 868100000;
-    ctx->tx_window_config.bandwidth = LORA_BW_125;
-    ctx->tx_window_config.spreading_factor = LORA_SF_7;
-    ctx->tx_window_config.tx_power = 0x16;
 }
 
 static void loramac_init_radio(const loramac_ctx_t *ctx)
@@ -150,8 +165,11 @@ static void loramac_rx_timer_callback(void *arg)
 
 static void loramac_tx_done_callback(void)
 {
-    esp_timer_start_once(context.rx1_timer_handle, context.rx1_window_config.delay_ms * 1000);
-    esp_timer_start_once(context.rx2_timer_handle, context.rx2_window_config.delay_ms * 1000);
+    // Configure RX1 based on TX
+    loramac_init_rx_config(&context.rx1_window_config, context.tx_window_config.frequency_hz, context.tx_window_config.dr);
+
+    esp_timer_start_once(context.rx1_timer_handle, context.rx1_delay * 1000);
+    esp_timer_start_once(context.rx2_timer_handle, context.rx2_delay * 1000);
 }
 
 static void loramac_rx_done_callback(uint8_t *payload, uint8_t payload_length, uint16_t rssi, uint8_t snr)

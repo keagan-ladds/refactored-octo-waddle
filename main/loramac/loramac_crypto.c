@@ -7,11 +7,12 @@
 #include <string.h>
 #include "loramac_serializer.h"
 #include "loramac_parser.h"
+#include "loramac.h"
 #include <stdlib.h>
 
 #define LORAMAC_CRYPTO_TAG "loramac_crypto"
 
-uint8_t app_key[] = {0x27, 0xE8, 0xC6, 0x0A, 0xAA, 0x4A, 0x86, 0x8A, 0xF0, 0xA8, 0x85, 0xD8, 0x0B, 0x65, 0x17, 0x57};
+
 
 loramac_crypto_err_t loramac_crypto_nvm_init(void);
 loramac_crypto_err_t loramac_crypto_aes_verify_cmac(uint8_t *key, uint8_t *buffer, uint16_t buffer_length, uint32_t cmac);
