@@ -77,7 +77,7 @@ void app_main(void)
 
     const loramac_init_config_t lora_config = {
         .channel = 0,
-        .dr = DR_5
+        .dr = DR_3
     };
 
     const pwr_mgmnt_sleeplock_handle_t hdl;

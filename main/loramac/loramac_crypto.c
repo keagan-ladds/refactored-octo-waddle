@@ -8,6 +8,7 @@
 #include "loramac_serializer.h"
 #include "loramac_parser.h"
 #include "loramac.h"
+#include "loramac_debug.h"
 #include <stdlib.h>
 
 #define LORAMAC_CRYPTO_TAG "loramac_crypto"
@@ -240,6 +241,8 @@ loramac_crypto_err_t loramac_crypto_handle_join_accept(loramac_message_join_acce
         ESP_LOGE(LORAMAC_CRYPTO_TAG, "Error while parsing join-accept message.");
         return -1;
     }
+
+    loramac_debug_dump_join_accept(msg);
 
     err = loramac_crypto_aes_verify_cmac(&app_key, msg->buffer, msg->buffer_size - LORAMAC_MIC_FIELD_SIZE, msg->mic);
 

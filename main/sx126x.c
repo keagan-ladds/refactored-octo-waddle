@@ -80,29 +80,24 @@ void sx162x_init(void)
 {
     sx162x_set_standby(STDBY_RC);
 
-    sx162x_set_dio2_as_rf_ctrl(true);
+    //sx162x_set_dio2_as_rf_ctrl(true);
 
     sx162x_clear_irq_status(0xFFF);
 
     sx162x_set_dio3_as_tcxo_ctrl(TCXO_CTRL_1_7V, TCX0_TIMEOUT);
-    vTaskDelay(500 / portTICK_PERIOD_MS);
     sx162x_calibrate(0x7F);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
     sx162x_calibrate_image(0xD7, 0xDB);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
 
-    uint8_t reg = sx162x_get_packet_type();
-    printf("SX126X_PACKET_TYPE = 0x%X", reg);
+    // Set to boosted RX gain
+    uint8_t rx_gain = 0x96;
+    sx126x_read_register(SX126X_REG_RX_GAIN, &rx_gain, 1);
+
+    /*uint8_t tx_clamp_config = 0;
+    sx126x_read_register(SX126X_REG_TX_CLAMP_CONFIG, &tx_clamp_config, 1);
+    tx_clamp_config |= (0x0F << 1);
+    sx126x_write_register(SX126X_REG_TX_CLAMP_CONFIG, &tx_clamp_config, 1);*/
 
     sx162x_clear_device_errors();
-
-    /*sx162x_irq_params_t irq_params = {
-        .irq_mask = 0xFFF,
-        .dio_1_mask = 0xFFF,
-        .dio_2_mask = 0x00};
-
-    sx162x_set_dio_irq_params(irq_params);*/
-    sx162x_set_lora_sync_word(0x3444);
 }
 
 sx126x_packet_status_t sx162x_get_packet_status(void)
@@ -346,6 +341,6 @@ static uint32_t SX126xConvertFreqInHzToPllStep(uint32_t freqInHz)
 
     // Apply the scaling factor to retrieve a frequency in Hz (+ ceiling)
     return (stepsInt << SX126X_PLL_STEP_SHIFT_AMOUNT) +
-                       (((stepsFrac << SX126X_PLL_STEP_SHIFT_AMOUNT) + (SX126X_PLL_STEP_SCALED >> 1)) /
-                        SX126X_PLL_STEP_SCALED);
+           (((stepsFrac << SX126X_PLL_STEP_SHIFT_AMOUNT) + (SX126X_PLL_STEP_SCALED >> 1)) /
+            SX126X_PLL_STEP_SCALED);
 }

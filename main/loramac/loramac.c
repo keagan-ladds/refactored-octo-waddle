@@ -141,7 +141,7 @@ static void loramac_init_ctx(loramac_ctx_t *ctx, const loramac_init_config_t *co
 
     ctx->rx2_window_config.frequency_hz = 869525000;
     ctx->rx2_window_config.bandwidth = LORA_BW_125;
-    ctx->rx2_window_config.spreading_factor = LORA_SF_9;
+    ctx->rx2_window_config.spreading_factor = LORA_SF_12;
 }
 
 static void loramac_init_radio(const loramac_ctx_t *ctx)
@@ -160,7 +160,7 @@ static void loramac_rx_timer_callback(void *arg)
 
     lora_radio_set_rx_params(LORA_RADIO_LORA, config->bandwidth, config->spreading_factor);
     lora_radio_set_channel(config->frequency_hz);
-    lora_radio_receive(0xFFFFFF);
+    lora_radio_receive(0x00);
 }
 
 static void loramac_tx_done_callback(void)

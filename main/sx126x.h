@@ -24,7 +24,7 @@
 #define SX126X_REG_IQ_POLARITY_CONFIG 0x0736
 
 #define SX126X_IRQ_TX_DONE (1 << 0)
-#define SX126X_IRQ_RX_DONE (1 << 2)
+#define SX126X_IRQ_RX_DONE (1 << 1)
 #define SX126X_IRQ_TIMEOUT (1 << 9)
 
 typedef enum
