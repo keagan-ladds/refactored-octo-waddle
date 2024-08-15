@@ -15,11 +15,16 @@ static loramac_ctx_t context;
 // APP_EUI: 0059AC0000010D19
 // APP_KEY: b5a69b6df41f53d39108917bdcdf72e5
 
-
+#define LORAMAC_RX_TIMEOUT 3000
+#define LORAMAC_DEFAULT_RX1_DELAY 1000
+#define LORAMAC_DEFAULT_RX2_DELAY 2000
+#define LORAMAC_RX1_JOIN_DELAY 4900
+#define LORAMAC_RX2_JOIN_DELAY 5900
 
 static void loramac_init_ctx(loramac_ctx_t *ctx, const loramac_init_config_t *config);
 static void loramac_init_radio(const loramac_ctx_t *ctx);
 static void loramac_rx_timer_callback(void *arg);
+static void loramac_rx_timeout_callback(void);
 static void loramac_tx_done_callback(void);
 static void loramac_rx_done_callback(uint8_t *payload, uint8_t payload_length, uint16_t rssi, uint8_t snr);
 
@@ -28,7 +33,6 @@ loramac_err_t loramac_init(const loramac_init_config_t *config)
     loramac_init_ctx(&context, config);
     loramac_init_radio(&context);
     loramac_crypto_init();
-    lora_radio_set_public_network(true);
 
     return LORAMAC_OK;
 }
@@ -56,16 +60,16 @@ loramac_err_t loramac_join(bool force, uint32_t timeout)
     memcpy(&msg.dev_eui, &dev_eui, sizeof(dev_eui));
 
     loramac_crypto_prepare_join_request(&msg);
+    lora_radio_set_tx_params(LORA_RADIO_LORA, context.tx_config.tx_power,
+                             context.tx_config.bandwidth,
+                             context.tx_config.spreading_factor);
 
-    lora_radio_set_tx_params(LORA_RADIO_LORA, context.tx_window_config.tx_power,
-                             context.tx_window_config.bandwidth,
-                             context.tx_window_config.spreading_factor);
-
-    lora_radio_set_channel(context.tx_window_config.frequency_hz);
+    lora_radio_set_channel(context.tx_config.frequency_hz);
     lora_radio_send(msg.buffer, msg.buffer_size);
 
     return LORAMAC_OK;
 }
+
 
 loramac_err_t loramac_send(void *payload, uint16_t payload_length)
 {
@@ -97,11 +101,14 @@ loramac_err_t loramac_send(void *payload, uint16_t payload_length)
         return -1;
     }
 
-    lora_radio_set_tx_params(LORA_RADIO_LORA, context.tx_window_config.tx_power,
-                             context.tx_window_config.bandwidth,
-                             context.tx_window_config.spreading_factor);
+    //context.rx1_delay = LORAMAC_DEFAULT_RX1_DELAY;
+    //context.rx2_delay = LORAMAC_DEFAULT_RX2_DELAY;
 
-    lora_radio_set_channel(context.tx_window_config.frequency_hz);
+    lora_radio_set_tx_params(LORA_RADIO_LORA, context.tx_config.tx_power,
+                             context.tx_config.bandwidth,
+                             context.tx_config.spreading_factor);
+
+    lora_radio_set_channel(context.tx_config.frequency_hz);
     lora_radio_send(msg.buffer, msg.buffer_size);
 
     return LORAMAC_OK;
@@ -127,16 +134,18 @@ static void loramac_init_ctx(loramac_ctx_t *ctx, const loramac_init_config_t *co
 {
     const esp_timer_create_args_t rx1_timer_args = {.callback = &loramac_rx_timer_callback, .arg = (void *)&ctx->rx1_window_config};
     const esp_timer_create_args_t rx2_timer_args = {.callback = &loramac_rx_timer_callback, .arg = (void *)&ctx->rx2_window_config};
+    const esp_timer_create_args_t rx_timeout_timer_args = {.callback = &loramac_rx_timeout_callback};
 
     ESP_ERROR_CHECK(esp_timer_create(&rx1_timer_args, &ctx->rx1_timer_handle));
     ESP_ERROR_CHECK(esp_timer_create(&rx2_timer_args, &ctx->rx2_timer_handle));
+    ESP_ERROR_CHECK(esp_timer_create(&rx_timeout_timer_args, &ctx->rx_timeout_timer_handle));
 
     ctx->channel = config->channel;
 
-    loramac_init_tx_config(&ctx->tx_window_config, config->channel, config->dr);
+    loramac_init_tx_config(&ctx->tx_config, config->channel, config->dr);
 
-    ctx->rx1_delay = 4800;
-    ctx->rx2_delay = 5900;
+    ctx->rx1_delay = 5000;
+    ctx->rx2_delay = 6000;
 
 
     ctx->rx2_window_config.frequency_hz = 869525000;
@@ -161,12 +170,21 @@ static void loramac_rx_timer_callback(void *arg)
     lora_radio_set_rx_params(LORA_RADIO_LORA, config->bandwidth, config->spreading_factor);
     lora_radio_set_channel(config->frequency_hz);
     lora_radio_receive(0x00);
+
+    //esp_timer_stop(context.rx_timeout_timer_handle);
+    //esp_timer_start_once(context.rx_timeout_timer_handle, LORAMAC_RX_TIMEOUT * 1000);
+}
+
+static void loramac_rx_timeout_callback(void)
+{
+    //ESP_LOGI(TAG, "Recieve timeout, putting radio in standby.");
+    //lora_radio_standby();
 }
 
 static void loramac_tx_done_callback(void)
 {
     // Configure RX1 based on TX
-    loramac_init_rx_config(&context.rx1_window_config, context.tx_window_config.frequency_hz, context.tx_window_config.dr);
+    loramac_init_rx_config(&context.rx1_window_config, context.tx_config.frequency_hz, context.tx_config.dr);
 
     esp_timer_start_once(context.rx1_timer_handle, context.rx1_delay * 1000);
     esp_timer_start_once(context.rx2_timer_handle, context.rx2_delay * 1000);
@@ -184,5 +202,6 @@ static void loramac_rx_done_callback(uint8_t *payload, uint8_t payload_length, u
     {
         esp_timer_stop(context.rx1_timer_handle);
         esp_timer_stop(context.rx2_timer_handle);
+        esp_timer_stop(context.rx_timeout_timer_handle);
     }
 }
