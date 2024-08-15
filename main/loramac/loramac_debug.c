@@ -9,6 +9,9 @@ void loramac_debug_dump_join_accept(loramac_message_join_accept_t *msg)
     ESP_LOGI(TAG_1, "NetID: {0x%X, 0x%X, 0x%X}", msg->net_id[0], msg->net_id[1], msg->net_id[2]);
     ESP_LOGI(TAG_1, "DevAddr: {0x%08lX}", msg->dev_addr);
     ESP_LOGI(TAG_1, "CFList Length: {0x%X}", msg->cf_list_length);
+    ESP_LOGI(TAG_1, "DR Offset: %d", msg->dl_settings.rx1_dr_offset);
+    ESP_LOGI(TAG_1, "RX2 DR: %d", msg->dl_settings.rx2_dr);
+    ESP_LOGI(TAG_1, "RX Delay: %d", msg->rx_delay);
 }
 
 void loramac_debug_dump_join_request(loramac_message_join_request_t *msg)

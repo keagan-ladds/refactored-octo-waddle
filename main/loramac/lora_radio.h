@@ -61,12 +61,13 @@ typedef struct
 {
     void (*tx_done)(void);
     void (*tx_timeout)(void);
-    void (*rx_done)(uint8_t *payload, uint8_t payload_length, uint16_t rssi, uint8_t snr);
+    void (*rx_done)(uint8_t *payload, uint8_t payload_length, int16_t rssi, int8_t snr);
     void (*rx_timeout)(void);
 
 } lora_radio_config_t;
 
 void lora_radio_init(lora_radio_config_t config);
+void lora_radio_standby(void);
 void lora_radio_set_channel(uint32_t freq);
 void lora_radio_set_public_network(bool public);
 void lora_radio_receive(uint32_t timeout);

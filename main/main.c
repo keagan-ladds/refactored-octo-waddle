@@ -77,7 +77,7 @@ void app_main(void)
 
     const loramac_init_config_t lora_config = {
         .channel = 0,
-        .dr = DR_3
+        .dr = DR_5
     };
 
     const pwr_mgmnt_sleeplock_handle_t hdl;
@@ -93,13 +93,14 @@ void app_main(void)
     app_ui_init();
     adxl345_init();
 
-    const char* str = "Hello World!";
-    //loramac_send(str, strlen(str));
-
     loramac_join(false, -1);
 
+    //vTaskDelay(15000 / portTICK_PERIOD_MS);
 
-    vTaskDelay(15000 / portTICK_PERIOD_MS);
+    //const char* str = "Hello World!";
+    //loramac_send(str, strlen(str));
+
+    
     // app_ui_sleep();
     // app_pwr_sleep();
 

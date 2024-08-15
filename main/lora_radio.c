@@ -40,7 +40,6 @@ void lora_radio_init(lora_radio_config_t config)
     lora_radio_spi_init();
     lora_radio_gpio_init();
     sx162x_init();
-    //sx162x_set_buffer_base_address(0x00, 0x00);
 
     gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
     // start gpio task
@@ -50,6 +49,11 @@ void lora_radio_init(lora_radio_config_t config)
     gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
     // hook isr handler for specific gpio pin
     gpio_isr_handler_add(SX126X_GPIO_INT1, gpio_isr_handler, (void *)SX126X_GPIO_INT1);
+}
+
+void lora_radio_standby(void)
+{
+    sx162x_set_standby(STDBY_RC);
 }
 
 void lora_radio_receive(uint32_t timeout)
@@ -91,10 +95,19 @@ void lora_radio_set_rx_params(lora_radio_modem_t modem, uint8_t bandwidth, uint8
         modulation_params.lora.bandwidth = bandwidth;
         modulation_params.lora.speading_factor = spreading_factor;
         modulation_params.lora.coding_rate = LORA_CR_4_5;
-        modulation_params.lora.low_data_rate_optimize = false;
+
+        if (spreading_factor >= LORA_SF_10)
+        {
+            modulation_params.lora.low_data_rate_optimize = true;
+        }
+        else
+        {
+            modulation_params.lora.low_data_rate_optimize = false;
+        }
 
         sx162x_set_modulation_params(modulation_params);
         sx162x_set_packet_params(packet_params);
+
         ESP_LOGI(LORA_RADIO_TAG, "Configuring RX params for Lora mode.");
         break;
 
@@ -128,7 +141,7 @@ void lora_radio_send(void *buffer, uint8_t len)
     sx126x_write_buffer(0x00, buffer, len);
 
     vTaskDelay(5 / portTICK_PERIOD_MS);
-    sx162x_set_tx(0x00);
+    sx162x_set_tx(0xFFFFFF);
     radio_state = LORA_RADIO_STATE_TX;
     ESP_LOGI(LORA_RADIO_TAG, "Transmitting %d bytes.", len);
     ESP_LOG_BUFFER_HEX(LORA_RADIO_TAG, buffer, len);

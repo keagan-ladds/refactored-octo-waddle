@@ -144,8 +144,8 @@ static void loramac_init_ctx(loramac_ctx_t *ctx, const loramac_init_config_t *co
 
     loramac_init_tx_config(&ctx->tx_config, config->channel, config->dr);
 
-    ctx->rx1_delay = 5000;
-    ctx->rx2_delay = 6000;
+    ctx->rx1_delay = 4900;
+    ctx->rx2_delay = 5900;
 
 
     ctx->rx2_window_config.frequency_hz = 869525000;
@@ -169,7 +169,7 @@ static void loramac_rx_timer_callback(void *arg)
 
     lora_radio_set_rx_params(LORA_RADIO_LORA, config->bandwidth, config->spreading_factor);
     lora_radio_set_channel(config->frequency_hz);
-    lora_radio_receive(0x00);
+    lora_radio_receive(0xFFFFFF);
 
     //esp_timer_stop(context.rx_timeout_timer_handle);
     //esp_timer_start_once(context.rx_timeout_timer_handle, LORAMAC_RX_TIMEOUT * 1000);

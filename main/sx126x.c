@@ -85,8 +85,11 @@ void sx162x_init(void)
     sx162x_clear_irq_status(0xFFF);
 
     sx162x_set_dio3_as_tcxo_ctrl(TCXO_CTRL_1_7V, TCX0_TIMEOUT);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
     sx162x_calibrate(0x7F);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
     sx162x_calibrate_image(0xD7, 0xDB);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
 
     // Set to boosted RX gain
     uint8_t rx_gain = 0x96;
@@ -303,7 +306,6 @@ void sx162x_set_packet_type(sx162x_packet_type_t type)
     uint8_t data[1];
     data[0] = type;
 
-    ESP_LOGI(TAG, "Setting SX126X packet type to 0x%X.", type);
     sx126x_write_command(SX162X_SET_PACKETTYPE, &data, 1);
 
     packet_type = type;

@@ -190,9 +190,9 @@ typedef struct
 
 typedef struct
 {
-    uint8_t rssi_pkt;
-    uint8_t snr_pkt;
-    uint8_t signal_rssi;
+    int16_t rssi_pkt;
+    int8_t snr_pkt;
+    int16_t signal_rssi;
 } sx126x_lora_packet_status_t;
 
 typedef union
