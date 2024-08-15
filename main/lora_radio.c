@@ -127,6 +127,7 @@ void lora_radio_send(void *buffer, uint8_t len)
         ESP_LOGI(LORA_RADIO_TAG, "Setting TX payload length to %d bytes.", len);
         break;
     default:
+        ESP_LOGE(LORA_RADIO_TAG, "Unhandled packet type.");
         return;
     }
 
@@ -136,12 +137,13 @@ void lora_radio_send(void *buffer, uint8_t len)
     gpio_set_level(SX126X_GPIO_TXEN, 1);
     gpio_set_level(SX126X_GPIO_RXEN, 0);
     sx162x_set_dio_irq_params(irq_params);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
 
     sx162x_set_buffer_base_address(0x00, 0x00);
     sx126x_write_buffer(0x00, buffer, len);
 
-    vTaskDelay(5 / portTICK_PERIOD_MS);
-    sx162x_set_tx(0xFFFFFF);
+    
+    sx162x_set_tx(0xFFFFFFFF);
     radio_state = LORA_RADIO_STATE_TX;
     ESP_LOGI(LORA_RADIO_TAG, "Transmitting %d bytes.", len);
     ESP_LOG_BUFFER_HEX(LORA_RADIO_TAG, buffer, len);
@@ -172,7 +174,7 @@ void lora_radio_set_tx_params(lora_radio_modem_t modem, uint8_t power, uint8_t b
         pa_config.device_sel = 0x00;
 
         tx_params.power = power;
-        tx_params.ramp_time = 0x00;
+        tx_params.ramp_time = SET_RAMP_200U;
 
         sx162x_set_modulation_params(modulation_params);
         sx162x_set_packet_params(packet_params);

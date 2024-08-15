@@ -88,17 +88,19 @@ void app_main(void)
     pwr_mgmnt_set_sleeplock(hdl);
     pwr_mgmnt_release_sleeplock(hdl);
 
-    loramac_init(&lora_config);
-
     app_ui_init();
     adxl345_init();
 
+    loramac_init(&lora_config);
+
+    
+
     loramac_join(false, -1);
 
-    //vTaskDelay(15000 / portTICK_PERIOD_MS);
+    vTaskDelay(15000 / portTICK_PERIOD_MS);
 
-    //const char* str = "Hello World!";
-    //loramac_send(str, strlen(str));
+    const char* str = "Hello World!";
+    loramac_send(str, strlen(str));
 
     
     // app_ui_sleep();
