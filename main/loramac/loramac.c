@@ -5,6 +5,7 @@
 #include "loramac_handler.h"
 #include "loramac_message.h"
 #include "loramac_serializer.h"
+#include "loramac_region.h"
 #include "esp_timer.h"
 #include "esp_log.h"
 
@@ -15,11 +16,8 @@ static loramac_ctx_t context;
 // APP_EUI: 0059AC0000010D19
 // APP_KEY: b5a69b6df41f53d39108917bdcdf72e5
 
-#define LORAMAC_RX_TIMEOUT 3000
-#define LORAMAC_DEFAULT_RX1_DELAY 1000
-#define LORAMAC_DEFAULT_RX2_DELAY 2000
-#define LORAMAC_RX1_JOIN_DELAY 4900
-#define LORAMAC_RX2_JOIN_DELAY 5900
+#define LORAMAC_RX_TIMEOUT 5000
+
 
 static void loramac_init_ctx(loramac_ctx_t *ctx, const loramac_init_config_t *config);
 static void loramac_init_radio(const loramac_ctx_t *ctx);
@@ -27,12 +25,13 @@ static void loramac_rx_timer_callback(void *arg);
 static void loramac_rx_timeout_callback(void);
 static void loramac_tx_done_callback(void);
 static void loramac_rx_done_callback(uint8_t *payload, uint8_t payload_length, uint16_t rssi, uint8_t snr);
+static void loramac_send_on_channel(uint8_t channel, uint8_t dr);
 
 loramac_err_t loramac_init(const loramac_init_config_t *config)
 {
     loramac_init_ctx(&context, config);
     loramac_init_radio(&context);
-    loramac_crypto_init();
+    loramac_crypto_init(&context);
 
     return LORAMAC_OK;
 }
@@ -49,14 +48,16 @@ loramac_err_t loramac_join(bool force, uint32_t timeout)
 
     lora_radio_set_public_network(true);
 
-    uint8_t buff[255];
+    context.rx1_delay = LORAMAC_RX1_JOIN_DELAY;
+    context.rx2_delay = LORAMAC_RX2_JOIN_DELAY;
 
     loramac_message_join_request_t msg;
-    msg.buffer = &buff;
-    msg.buffer_size = sizeof(buff);
+    msg.buffer = &context.tx_buffer;
+    msg.buffer_size = sizeof(context.tx_buffer);
     msg.mhdr.frame_type = LORAMAC_FRAME_JOIN_REQUEST;
     msg.mhdr.major = 0x00;
     memcpy(&msg.join_eui, &join_eui, sizeof(join_eui));
+    
     memcpy(&msg.dev_eui, &dev_eui, sizeof(dev_eui));
 
     loramac_crypto_prepare_join_request(&msg);
@@ -68,6 +69,18 @@ loramac_err_t loramac_join(bool force, uint32_t timeout)
     lora_radio_send(msg.buffer, msg.buffer_size);
 
     return LORAMAC_OK;
+}
+
+static void loramac_send_on_channel(uint8_t channel, uint8_t dr)
+{
+    //loramac_init_tx_config(&context.tx_config, channel, dr);
+
+    lora_radio_set_tx_params(LORA_RADIO_LORA, context.tx_config.tx_power,
+                             context.tx_config.bandwidth,
+                             context.tx_config.spreading_factor);
+
+    lora_radio_set_channel(context.tx_config.frequency_hz);
+    lora_radio_send(&context.tx_buffer, context.tx_buffer_length);
 }
 
 
@@ -143,16 +156,15 @@ static void loramac_init_ctx(loramac_ctx_t *ctx, const loramac_init_config_t *co
     ESP_ERROR_CHECK(esp_timer_create(&rx_timeout_timer_args, &ctx->rx_timeout_timer_handle));
 
     ctx->channel = config->channel;
+    ctx->dr = config->dr;
 
+    loramac_init_phy_config(&ctx->phy_config);
     loramac_init_tx_config(&ctx->tx_config, config->channel, config->dr);
 
-    ctx->rx1_delay = 4900;
-    ctx->rx2_delay = 5900;
+    ctx->rx1_delay = ctx->phy_config.rx1_delay;
+    ctx->rx2_delay = ctx->phy_config.rx2_delay;
 
-
-    ctx->rx2_window_config.frequency_hz = 869525000;
-    ctx->rx2_window_config.bandwidth = LORA_BW_125;
-    ctx->rx2_window_config.spreading_factor = LORA_SF_12;
+    
 }
 
 static void loramac_init_radio(const loramac_ctx_t *ctx)
@@ -187,6 +199,7 @@ static void loramac_tx_done_callback(void)
 {
     // Configure RX1 based on TX
     loramac_init_rx_config(&context.rx1_window_config, context.tx_config.frequency_hz, context.tx_config.dr);
+    loramac_init_rx_config(&context.rx2_window_config, LORAMAC_RX2_FREQ, context.phy_config.rx2_dr);
 
     esp_timer_start_once(context.rx1_timer_handle, context.rx1_delay * 1000);
     esp_timer_start_once(context.rx2_timer_handle, context.rx2_delay * 1000);
@@ -205,5 +218,6 @@ static void loramac_rx_done_callback(uint8_t *payload, uint8_t payload_length, u
         esp_timer_stop(context.rx1_timer_handle);
         esp_timer_stop(context.rx2_timer_handle);
         esp_timer_stop(context.rx_timeout_timer_handle);
+        lora_radio_standby();
     }
 }

@@ -14,7 +14,7 @@
 #include "esp_timer.h"
 #include "nmea_parser.h"
 #include "esp_log.h"
-#include "app_ui.h"
+//#include "app_ui.h"
 #include "adxl345.h"
 #include "loramac/lora_radio.h"
 #include "loramac/loramac_serializer.h"
@@ -77,7 +77,7 @@ void app_main(void)
 
     const loramac_init_config_t lora_config = {
         .channel = 0,
-        .dr = DR_5
+        .dr = DR_3
     };
 
     const pwr_mgmnt_sleeplock_handle_t hdl;
@@ -88,13 +88,9 @@ void app_main(void)
     pwr_mgmnt_set_sleeplock(hdl);
     pwr_mgmnt_release_sleeplock(hdl);
 
-    app_ui_init();
     adxl345_init();
 
     loramac_init(&lora_config);
-
-    
-
     loramac_join(false, -1);
 
     vTaskDelay(15000 / portTICK_PERIOD_MS);
@@ -102,13 +98,13 @@ void app_main(void)
     const char* str = "Hello World!";
     loramac_send(str, strlen(str));
 
-    
     // app_ui_sleep();
     // app_pwr_sleep();
 
     while (true)
     {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
+        //loramac_send(str, strlen(str));
     }
 }
 

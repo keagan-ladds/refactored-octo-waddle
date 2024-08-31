@@ -90,12 +90,6 @@ void adxl345_init_gpio(void)
 
 bool adxl345_i2c_driver_init(int port, int sda_pin, int scl_pin, int speed_hz)
 {
-
-//#ifdef CONFIG_HAVE_I2C_MANAGER
-    i2c_manager_init(I2C_NUM_0);
-    return true;
-//#endif
-
     esp_err_t err;
 
     ESP_LOGI(TAG, "Initializing I2C master port %d...", port);
@@ -148,10 +142,10 @@ static uint8_t send_data(void *bytes, size_t bytes_len)
 {
     esp_err_t err;
 
-#ifdef CONFIG_HAVE_I2C_MANAGER
+/*#ifdef CONFIG_HAVE_I2C_MANAGER
     err = i2c_manager_write(I2C_NUM_0, ADXL345_I2C_ADDR, I2C_NO_REG , bytes, bytes_len);
     return err;
-#endif
+#endif*/
 
     uint8_t *data = (uint8_t *)bytes;
 
@@ -178,10 +172,10 @@ static uint8_t recieve_data(uint8_t reg_addr, void *bytes, size_t bytes_len)
 {
     esp_err_t err;
 
-#ifdef CONFIG_HAVE_I2C_MANAGER
+/*#ifdef CONFIG_HAVE_I2C_MANAGER
     err = i2c_manager_read(I2C_NUM_0, ADXL345_I2C_ADDR, reg_addr, bytes, bytes_len);
     return err;
-#endif
+#endif*/
 
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);

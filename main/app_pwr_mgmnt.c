@@ -8,12 +8,25 @@
 #include "freertos/event_groups.h"
 #include "esp_types.h"
 #include <stdatomic.h>
+#include "driver/gpio.h"
+#include "driver/adc.h"
+#include "driver/rtc_io.h"
+#include "esp_adc_cal.h"
 
 #define TAG "app_power_management"
 #define PWR_EXT_WAKE_PIN 34
+#define PWR_MGMT_GET_VOLTAGE_PERIOD_MS 1000 * 5
+#define DEFAULT_VREF 1100
 
 static pwr_mgmnt_ctx_t pwr_mgmnt_ctx;
 static uint32_t sleeplock_count = 0;
+static esp_adc_cal_characteristics_t *adc_chars;
+static const adc_channel_t channel = ADC_CHANNEL_3;
+static const adc_bits_width_t width = ADC_WIDTH_BIT_12;
+static const adc_atten_t atten = ADC_ATTEN_DB_11;
+static const adc_unit_t unit = ADC_UNIT_1;
+static esp_timer_handle_t get_state_timer;
+static esp_timer_handle_t get_battery_voltage_timer;
 
 static prw_mgmnt_sleeplock_t sleeplock_config[PWR_MGMNT_MAX_SLEEPLOCKS];
 
@@ -21,11 +34,15 @@ static void pwr_mgmnt_init_ctx(pwr_mgmnt_ctx_t *ctx, const pwr_mgmnt_init_config
 static void pwr_mgmnt_set_power_on_reason(pwr_mgmnt_ctx_t *ctx);
 static void pwr_mgmnt_init_sleeplock(pwr_mgmnt_ctx_t *ctx);
 static void pwr_mgmnt_init_sleeplock_timers(pwr_mgmnt_ctx_t *ctx);
+static void pwr_mgmt_init_batt_adc();
+
+static void batt_voltage_timer_callback(void *arg);
 
 void pwr_mgmnt_init(const pwr_mgmnt_init_config_t *config)
 {
     pwr_mgmnt_init_ctx(&pwr_mgmnt_ctx, config);
     pwr_mgmnt_init_sleeplock(&pwr_mgmnt_ctx);
+    pwr_mgmt_init_batt_adc();
 }
 
 void app_pwr_sleep(void)
@@ -131,4 +148,38 @@ static void pwr_mgmnt_init_sleeplock_timers(pwr_mgmnt_ctx_t *ctx)
 
         ESP_ERROR_CHECK(esp_timer_create(&deep_sleep_timer_args, &ctx->deep_sleep_timer_handle));
     }
+}
+
+static void pwr_mgmt_init_batt_adc()
+{
+    const esp_timer_create_args_t get_voltage_timer_args = {
+        .callback = &batt_voltage_timer_callback,
+        .name = "pwr_mgmt_get_voltage"};
+
+    ESP_ERROR_CHECK(esp_timer_create(&get_voltage_timer_args, &get_battery_voltage_timer));
+    ESP_ERROR_CHECK(esp_timer_start_periodic(get_battery_voltage_timer, PWR_MGMT_GET_VOLTAGE_PERIOD_MS * 1000));
+
+    if (unit == ADC_UNIT_1)
+    {
+        adc1_config_width(width);
+        adc1_config_channel_atten(channel, atten);
+    }
+
+    adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
+    esp_adc_cal_value_t val_type = esp_adc_cal_characterize(unit, atten, width, DEFAULT_VREF, adc_chars);
+}
+
+static void batt_voltage_timer_callback(void *arg)
+{
+    uint32_t adc_reading = 0;
+    for (int x = 0; x < 10; x++)
+    {
+        adc_reading += adc1_get_raw((adc1_channel_t)channel);
+        vTaskDelay(pdMS_TO_TICKS(25));
+    }
+
+    adc_reading /= 10;
+
+    uint32_t voltage = 2 * esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
+    //ESP_LOGI(TAG, "Battery Voltage: %f", voltage * 1.0f);
 }

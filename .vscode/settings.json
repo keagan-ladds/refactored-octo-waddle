@@ -1,5 +1,5 @@
 {
-    "idf.portWin": "COM3",
+    "idf.portWin": "COM5",
     "idf.flashType": "UART",
     "idf.adapterTargetName": "esp32",
     "idf.gitPathWin": "D:\\Espressif\\.espressif\\tools\\idf-git\\2.39.2\\cmd\\git.exe",
@@ -38,6 +38,10 @@
         "stdlib.h": "c",
         "task.h": "c",
         "spi_master.h": "c",
-        "esp_timer.h": "c"
-    }
+        "esp_timer.h": "c",
+        "loramac_region.h": "c"
+    },
+    "idf.openOcdConfigs": [
+        "board/esp32-wrover-kit-3.3v.cfg"
+    ]
 }

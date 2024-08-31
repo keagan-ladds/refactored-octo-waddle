@@ -9,6 +9,7 @@ list (APPEND SOURCES "loramac/loramac_debug.c")
 list (APPEND SOURCES "loramac/loramac_crypto.c")
 list (APPEND SOURCES "loramac/loramac_crypto_nvm.c")
 list (APPEND SOURCES "loramac/loramac_handler.c")
+list (APPEND SOURCES "loramac/loramac_region.c")
 list (APPEND SOURCES "loramac/loramac.c")
 
 

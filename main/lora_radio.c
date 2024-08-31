@@ -6,7 +6,7 @@
 #include <string.h>
 
 #define LORA_RADIO_TAG "LORA_RADIO"
-#define SX126X_GPIO_INT1 33
+#define SX126X_GPIO_INT1 17 //33
 #define SX126X_GPIO_TXEN 12
 #define SX126X_GPIO_RXEN 14
 
@@ -63,8 +63,8 @@ void lora_radio_receive(uint32_t timeout)
     irq_params.dio_2_mask = 0x00;
     irq_params.dio_3_mask = 0x00;
 
-    gpio_set_level(SX126X_GPIO_TXEN, 0);
-    gpio_set_level(SX126X_GPIO_RXEN, 1);
+    //gpio_set_level(SX126X_GPIO_TXEN, 0);
+    //gpio_set_level(SX126X_GPIO_RXEN, 1);
 
     sx162x_set_dio_irq_params(irq_params);
     sx162x_set_buffer_base_address(0x00, 0x00);
@@ -134,8 +134,8 @@ void lora_radio_send(void *buffer, uint8_t len)
     irq_params.dio_1_mask = 0xFFF;
     irq_params.irq_mask = 0xFFF;
 
-    gpio_set_level(SX126X_GPIO_TXEN, 1);
-    gpio_set_level(SX126X_GPIO_RXEN, 0);
+    //gpio_set_level(SX126X_GPIO_TXEN, 1);
+    //gpio_set_level(SX126X_GPIO_RXEN, 0);
     sx162x_set_dio_irq_params(irq_params);
     vTaskDelay(10 / portTICK_PERIOD_MS);
 

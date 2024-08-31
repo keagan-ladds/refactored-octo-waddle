@@ -3,7 +3,8 @@
 
 #include <inttypes.h>
 
-#define ADXL345_I2C_ADDR 0x1D
+//#define ADXL345_I2C_ADDR 0x1D
+#define ADXL345_I2C_ADDR 0x53
 
 #define ADXL345_DEVID 0x00
 #define ADXL345_THRESH_TAP 0x1D
@@ -40,7 +41,7 @@
 #define ADXL345_I2C_SCL 22
 #define ADXL345_I2C_SPEED_HZ 400000
 
-#define ADXL345_GPIO_INT1 34
+#define ADXL345_GPIO_INT1 4
 
 void adxl345_init(void);
 void adxl345_read_val(uint8_t *data);

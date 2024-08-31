@@ -91,6 +91,11 @@ void sx162x_init(void)
     sx162x_calibrate_image(0xD7, 0xDB);
     vTaskDelay(10 / portTICK_PERIOD_MS);
 
+    uint16_t reg = 0x00;
+    sx126x_read_register(SX126X_REG_LORA_SYNCWORD, &reg, sizeof(reg));
+
+    ESP_LOGI(TAG, "Value of LORA_SYNCWORD_REG = 0x%X", reg);
+
     // Set to boosted RX gain
     uint8_t rx_gain = 0x96;
     sx126x_read_register(SX126X_REG_RX_GAIN, &rx_gain, 1);

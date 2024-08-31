@@ -10,23 +10,26 @@
 
 typedef int loramac_err_t;
 
-
-
-typedef struct {
+typedef struct
+{
     uint32_t freq;
-    struct {
+    struct
+    {
         uint8_t min_dr;
         uint8_t max_dr;
     } dr_range;
 
 } loramac_channel_t;
 
-typedef struct {
+typedef struct
+{
     loramac_channel_t channels[LORAMAC_MAX_CHANNELS];
+    uint32_t channel_mask;
     uint8_t dr_offset;
-    uint8_t rx_delay;
+    uint8_t rx1_delay;
+    uint8_t rx2_delay;
     uint8_t rx2_dr;
-} config_t;
+} loramac_phy_config_t;
 
 typedef enum
 {
@@ -67,13 +70,20 @@ typedef struct
     esp_timer_handle_t rx2_timer_handle;
     esp_timer_handle_t rx_timeout_timer_handle;
 
+    loramac_phy_config_t phy_config;
+
     uint8_t channel;
+    uint8_t dr;
+
     uint32_t rx1_delay;
     uint32_t rx2_delay;
 
     tx_window_config_t tx_config;
     rx_window_config_t rx1_window_config;
     rx_window_config_t rx2_window_config;
+
+    uint8_t tx_buffer[255];
+    uint16_t tx_buffer_length;
 
     bool joined;
 } loramac_ctx_t;
@@ -90,18 +100,17 @@ const static channel_config_t channels[] = {{.frequency_hz = 868100000}, {.frequ
 
 // DEV_EUI: 0059AC00001B2EB8
 // APP_EUI: 0059AC0000010D19
-// APP_KEY: 
+// APP_KEY:
 
 // KPN
 const static uint8_t join_eui[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 const static uint8_t dev_eui[] = {0xF5, 0x99, 0x06, 0xD0, 0x7E, 0xD5, 0xB3, 0x70};
 const static uint8_t app_key[] = {0x27, 0xE8, 0xC6, 0x0A, 0xAA, 0x4A, 0x86, 0x8A, 0xF0, 0xA8, 0x85, 0xD8, 0x0B, 0x65, 0x17, 0x57};
 
-//TTN
-//const static uint8_t join_eui[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-//const static uint8_t dev_eui[] = {0x5F, 0x99, 0x06, 0xD0, 0x7E, 0xD5, 0xB3, 0x70};
-//const static uint8_t app_key[] = {0x27, 0xE8, 0xC6, 0x0A, 0xAA, 0x4A, 0x86, 0x8A, 0xF0, 0xA8, 0x85, 0xD8, 0x0B, 0x65, 0x17, 0x57};
-
+// TTN
+// const static uint8_t join_eui[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+// const static uint8_t dev_eui[] = {0x5F, 0x99, 0x06, 0xD0, 0x7E, 0xD5, 0xB3, 0x70};
+// const static uint8_t app_key[] = {0x27, 0xE8, 0xC6, 0x0A, 0xAA, 0x4A, 0x86, 0x8A, 0xF0, 0xA8, 0x85, 0xD8, 0x0B, 0x65, 0x17, 0x57};
 
 loramac_err_t loramac_init(const loramac_init_config_t *config);
 loramac_err_t loramac_join(bool force, uint32_t timeout);

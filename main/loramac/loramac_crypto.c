@@ -31,17 +31,22 @@ loramac_crypto_err_t loramac_crypto_nvm_get_frame_counter(uint8_t direction, uin
 void loramac_crypto_prepare_b0(uint8_t dir, uint32_t dev_addr, uint32_t frame_cnt, uint8_t msg_length, uint8_t *b0);
 void loramac_crypto_prepare_a0(uint8_t dir, uint32_t dev_addr, uint32_t frame_cnt, uint8_t block_index, uint8_t *a0);
 
-loramac_crypto_err_t loramac_crypto_init(void)
+loramac_crypto_err_t loramac_crypto_init(loramac_ctx_t *ctx)
 {
     loramac_crypto_err_t err = loramac_crypto_nvm_init();
 
-    uint8_t nwk_s_key[16];
-    loramac_crypto_nvm_get_key(LORAMAC_CRYPTO_KEY_APP_SESS, nwk_s_key);
+    if (err != LORAMAC_OK)
+        return err;
 
-    ESP_LOGI(LORAMAC_CRYPTO_TAG, "APP_S_KEY");
-    ESP_LOG_BUFFER_HEX(LORAMAC_CRYPTO_TAG, &nwk_s_key, 16);
+    uint8_t key[16];
+    err |= loramac_crypto_nvm_get_key(LORAMAC_CRYPTO_KEY_NWK_SESS, &key);
+    err |= loramac_crypto_nvm_get_key(LORAMAC_CRYPTO_KEY_APP_SESS, &key);
 
-    return err;
+    if (err == LORAMAC_OK) {
+        ctx->joined = true;
+    }
+
+    return LORAMAC_OK;
 }
 
 loramac_crypto_err_t loramac_crypto_aes_cmac(uint8_t *key, uint8_t *b0_buffer, uint8_t *buffer, uint16_t buffer_length, uint32_t *cmac)
